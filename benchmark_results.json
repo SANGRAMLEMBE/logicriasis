@@ -1,0 +1,9 @@
+{
+  "n_episodes": 50,
+  "curriculum_level": 1,
+  "avg_otif_percent": 92.0,
+  "avg_turns_to_complete": 6.4,
+  "avg_total_reward": 5.56,
+  "coalition_formation_rate": 0.0,
+  "cold_chain_loss_rate_percent": 0.4
+}

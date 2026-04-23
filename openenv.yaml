@@ -1,0 +1,173 @@
+name: logicriasis
+display_name: "LogiCrisis: Multi-Agent Logistics Recovery"
+version: "1.0.0"
+description: |
+  A multi-agent RL environment where LLM agents cooperate, compete, negotiate,
+  and form coalitions to recover India's supply chain after real-world disruptions
+  (floods, port strikes, road closures). Agents operate under partial observability
+  and must demonstrate theory-of-mind reasoning to succeed.
+author: "LogiCrisis Team"
+license: "MIT"
+tags:
+  - logistics
+  - multi-agent
+  - negotiation
+  - coalition-formation
+  - real-world
+  - supply-chain
+  - partial-observability
+
+tasks:
+  - id: single_route_recovery
+    name: "Single Route Recovery"
+    difficulty: easy
+    description: >
+      One disruption blocks key routes. 2 agents must reroute 5 cargo items
+      to their destinations within 10 turns. Tests basic routing and prioritisation.
+    max_turns: 10
+    reward_range: [0.0, 1.0]
+    agents: 2
+    cargo_count: 5
+    disruptions: 1
+
+  - id: coalition_logistics
+    name: "Coalition Logistics"
+    difficulty: medium
+    description: >
+      Two simultaneous disruptions with cold-chain cargo at risk. 3 agents
+      must form a coalition and deliver 15 cargo items (including pharma)
+      within 15 turns. Tests negotiation and coalition formation.
+    max_turns: 15
+    reward_range: [0.0, 1.0]
+    agents: 3
+    cargo_count: 15
+    disruptions: 2
+
+  - id: cascade_failure_recovery
+    name: "Cascade Failure Recovery"
+    difficulty: hard
+    description: >
+      Three cascading disruptions shut down 60% of routes. 5 agents must
+      cooperate, negotiate SLAs, form coalitions, and protect cold-chain cargo
+      across 20 deliveries within 20 turns. Tests full multi-agent strategy.
+    max_turns: 20
+    reward_range: [0.0, 1.0]
+    agents: 5
+    cargo_count: 20
+    disruptions: 3
+
+  - id: cold_chain_emergency
+    name: "Cold Chain Emergency"
+    difficulty: medium-hard
+    description: >
+      ALL 12 cargo items are temperature-sensitive pharmaceuticals. 3 agents
+      must deploy cold storage, prioritise delivery order, and coordinate before
+      spoilage occurs. 2 disruptions, 12 turns — tight deadline, no room for waste.
+    max_turns: 12
+    reward_range: [0.0, 1.0]
+    agents: 3
+    cargo_count: 12
+    disruptions: 2
+
+  - id: negotiation_sprint
+    name: "Negotiation Sprint"
+    difficulty: medium
+    description: >
+      4 agents, 10 cargo, 10 turns, 1 disruption. Every cargo starts with the
+      wrong agent — they must negotiate transfers and form coalitions.
+      Solo routing yields minimal score; cooperation is the only winning strategy.
+    max_turns: 10
+    reward_range: [0.0, 1.0]
+    agents: 4
+    cargo_count: 10
+    disruptions: 1
+
+  - id: national_recovery
+    name: "Full National Recovery"
+    difficulty: expert
+    description: >
+      4 simultaneous disruptions, 25 cargo (40% cold-chain), 5 agents, 25 turns.
+      The expert benchmark — tests every mechanic simultaneously. Pass threshold
+      is 0.35 reflecting extreme difficulty.
+    max_turns: 25
+    reward_range: [0.0, 1.0]
+    agents: 5
+    cargo_count: 25
+    disruptions: 4
+
+  - id: earthquake_relief
+    name: "Earthquake Relief Operations"
+    difficulty: hard
+    description: >
+      South India earthquake aftermath: 18 cargo across 4 humanitarian priority
+      tiers (CRITICAL medical, HIGH rescue, MEDIUM food/water, LOW shelter).
+      4 agents, 3 disruptions, 15 turns. Grader uses priority-weighted OTIF with
+      severe penalty for undelivered CRITICAL items. Naive routing agents fail —
+      LLMs must reason about humanitarian triage ordering.
+    max_turns: 15
+    reward_range: [0.0, 1.0]
+    agents: 4
+    cargo_count: 18
+    disruptions: 3
+
+  - id: capacity_crunch
+    name: "Capacity Crunch"
+    difficulty: hard
+    description: >
+      COVID-surge scenario: demand is high but fleet capacity is at 25% —
+      drivers unavailable, trucks broken down. 5 agents must trade capacity
+      via the bid market to rebalance the fleet and deliver 20 cargo items.
+      Pure routing fails (score <40%); market coordination is the only winning
+      strategy. Grader: 0.40×OTIF + 0.35×utilisation + 0.25×market_activity.
+    max_turns: 15
+    reward_range: [0.0, 1.0]
+    agents: 5
+    cargo_count: 20
+    disruptions: 2
+
+  - id: jit_breakdown
+    name: "Just-In-Time Breakdown"
+    difficulty: medium-hard
+    description: >
+      JIT manufacturing crisis: 14 cargo items must arrive within turns 3–6 or
+      the factory line halts (zero credit for late delivery). 3 agents, 2
+      disruptions, 10 turns. Agents must triage — identify the highest-value
+      subset to save and deliberately abandon the rest. Grader: strict
+      value-weighted OTIF with triage efficiency bonus.
+    max_turns: 10
+    reward_range: [0.0, 1.0]
+    agents: 3
+    cargo_count: 14
+    disruptions: 2
+
+observation_space:
+  type: structured
+  format: json
+  schema: environment.schemas.ObservationSchema
+  description: >
+    Partial world view per agent: own region, capacity, budget, cargo queue,
+    pending deadlines, visible disrupted routes, noisy neighbour bids,
+    coalition proposals, and last 3 action outcomes.
+
+action_space:
+  type: structured
+  format: json
+  schema: environment.schemas.ActionSchema
+  description: >
+    Structured JSON action with type (reroute/bid/coalition/wait) and
+    associated parameters. All 13 action types are valid at any turn.
+
+reward_range: [0.0, 1.0]
+episode_max_steps: 20
+
+api:
+  reset: "POST /reset"
+  step:  "POST /step"
+  state: "GET /state"
+  tasks: "GET /tasks"
+  validate: "GET /validate"
+
+runtime:
+  language: python
+  version: "3.11"
+  entrypoint: "uvicorn api.app:app --host 0.0.0.0 --port 7860"
