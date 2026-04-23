@@ -161,18 +161,12 @@ def _parse_llm_action(agent_id: str, text: str) -> AgentAction:
 
 # ── Reward function for GRPO (verifiable signal) ───────────────────────────────
 
-def grpo_reward_fn(prompts: list[str], completions: list[str], **kwargs) -> list[float]:
+def grpo_reward_fn(completions: list[str], **kwargs) -> list[float]:
     """
     Called by GRPOTrainer after sampling completions.
-    Returns a scalar reward per (prompt, completion) pair.
-    We run a lightweight simulation step to score each action.
+    Returns a scalar reward per completion (TRL >= 0.9 signature).
     """
-    rewards = []
-    for prompt, completion in zip(prompts, completions):
-        # Quick verifier: parse JSON and compute action validity score
-        score = _score_completion(completion)
-        rewards.append(score)
-    return rewards
+    return [_score_completion(c) for c in completions]
 
 
 def _score_completion(completion: str) -> float:
@@ -295,7 +289,7 @@ def train(args: argparse.Namespace) -> None:
     trainer = GRPOTrainer(
         model=model,
         tokenizer=tokenizer,
-        reward_funcs=grpo_reward_fn,
+        reward_funcs=[grpo_reward_fn],
         args=grpo_config,
         train_dataset=dataset,
     )
