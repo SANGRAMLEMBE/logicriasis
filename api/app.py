@@ -292,3 +292,12 @@ def action_types():
 def agent_roles():
     from environment.models import AgentRole
     return {"agent_roles": [e.value for e in AgentRole]}
+
+
+# ── Mount Gradio demo at /gradio ──────────────────────────────────────────────
+try:
+    import gradio as gr
+    from demo.app import demo as gradio_demo
+    app = gr.mount_gradio_app(app, gradio_demo, path="/gradio")
+except Exception:
+    pass  # Gradio optional — API still works without it
