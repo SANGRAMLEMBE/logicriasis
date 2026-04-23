@@ -35,9 +35,10 @@ from environment.world import WorldState
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-API_BASE_URL = os.environ.get("API_BASE_URL", "https://api.openai.com/v1")
-MODEL_NAME   = os.environ.get("MODEL_NAME", "gpt-4o-mini")
-HF_TOKEN     = os.environ.get("HF_TOKEN") or os.environ.get("OPENAI_API_KEY", "")
+API_BASE_URL     = os.environ.get("API_BASE_URL", "https://api-inference.huggingface.co/v1")
+MODEL_NAME       = os.environ.get("MODEL_NAME", "meta-llama/Llama-3.2-3B-Instruct")
+HF_TOKEN         = os.environ.get("HF_TOKEN") or os.environ.get("OPENAI_API_KEY", "")
+LOCAL_IMAGE_NAME = os.environ.get("LOCAL_IMAGE_NAME", "")
 
 MAX_RETRIES  = 2    # LLM call retries before falling back to heuristic
 SEED         = 42

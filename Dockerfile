@@ -28,7 +28,5 @@ EXPOSE 7860
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:7860/ || exit 1
 
-# Default: run Gradio demo (HF Spaces entrypoint)
-# Override with: docker run ... python inference.py
-#            or: docker run ... uvicorn api.app:app --host 0.0.0.0 --port 7860
-CMD ["python", "demo/app.py"]
+# Run FastAPI server — required for HF Spaces ping (GET /) and reset() (POST /reset)
+CMD ["uvicorn", "api.app:app", "--host", "0.0.0.0", "--port", "7860"]
