@@ -2,7 +2,7 @@
 title: LogiCrisis Multi-Agent Logistics Recovery
 emoji: 🚛
 colorFrom: blue
-colorTo: orange
+colorTo: red
 sdk: docker
 app_port: 7860
 tags:
