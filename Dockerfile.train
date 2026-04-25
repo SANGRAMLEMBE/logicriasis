@@ -14,7 +14,8 @@ RUN pip install --no-cache-dir \
     pip install --no-cache-dir \
     "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git" \
     "trl>=0.9.0" datasets accelerate peft \
-    matplotlib requests fastapi uvicorn gradio huggingface_hub
+    matplotlib requests fastapi uvicorn gradio huggingface_hub && \
+    pip install --no-cache-dir "transformers>=4.40.0,<4.47.0"
 
 # Run training when container starts
 CMD ["python", "train_on_hf.py"]
