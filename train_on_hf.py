@@ -27,6 +27,14 @@ import os, sys, subprocess, time
 # ── 1. Install dependencies ───────────────────────────────────────────────────
 
 def install():
+    # torch + torchvision must be installed before unsloth (unsloth_zoo imports torchvision at module load)
+    print("[SETUP] Installing dependencies...")
+    subprocess.run(
+        [sys.executable, "-m", "pip", "install", "-q",
+         "torch", "torchvision", "torchaudio",
+         "--index-url", "https://download.pytorch.org/whl/cu121"],
+        check=True,
+    )
     pkgs = [
         "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git",
         "trl>=0.9.0",
@@ -36,7 +44,6 @@ def install():
         "matplotlib",
         "requests",
     ]
-    print("[SETUP] Installing dependencies...")
     subprocess.run(
         [sys.executable, "-m", "pip", "install", "-q"] + pkgs,
         check=True,
