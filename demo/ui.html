@@ -1,0 +1,1444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LogiCrisis v2 — Supply Chain Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #070710;
+    --s1:       #0d0d1f;
+    --s2:       rgba(255,255,255,0.04);
+    --border:   rgba(255,255,255,0.08);
+    --cyan:     #00d4ff;
+    --green:    #00ff88;
+    --amber:    #ffaa00;
+    --red:      #ff4444;
+    --purple:   #a855f7;
+    --pink:     #ec4899;
+    --indigo:   #5965d3;
+    --text:     #e2e8f0;
+    --muted:    rgba(255,255,255,0.38);
+    --font:     'Space Grotesk', sans-serif;
+    --mono:     'JetBrains Mono', monospace;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Background ──────────────────────────────────────────────── */
+  #bg-canvas {
+    position: fixed; inset: 0;
+    pointer-events: none; z-index: 0;
+    opacity: 0.35;
+  }
+
+  .grid-overlay {
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(89,101,211,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(89,101,211,0.04) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none; z-index: 0;
+  }
+
+  /* ── Header ───────────────────────────────────────────────────── */
+  header {
+    position: relative; z-index: 10;
+    display: flex; align-items: center; gap: 20px;
+    padding: 0 24px;
+    height: 56px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(7,7,16,0.8);
+    backdrop-filter: blur(12px);
+  }
+
+  .logo {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 17px; font-weight: 700; letter-spacing: -0.3px;
+  }
+
+  .logo-icon {
+    width: 28px; height: 28px;
+    background: linear-gradient(135deg, var(--indigo), var(--cyan));
+    border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+
+  .badge {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.6px;
+    padding: 2px 8px; border-radius: 4px;
+    background: rgba(89,101,211,0.2); border: 1px solid rgba(89,101,211,0.4);
+    color: var(--indigo);
+  }
+
+  .header-center { flex: 1; display: flex; justify-content: center; }
+
+  .status-pill {
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 14px; border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--s2);
+    font-size: 12px; font-family: var(--mono);
+    transition: all 0.4s;
+  }
+
+  .status-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: pulse-dot 2s infinite;
+  }
+
+  @keyframes pulse-dot {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  .header-right { display: flex; align-items: center; gap: 12px; }
+
+  .otif-badge {
+    font-family: var(--mono); font-size: 13px; font-weight: 500;
+    padding: 4px 12px; border-radius: 6px;
+    border: 1px solid rgba(0,255,136,0.3);
+    background: rgba(0,255,136,0.08);
+    color: var(--green);
+    transition: all 0.5s;
+  }
+
+  .btn {
+    padding: 7px 18px; border-radius: 8px; border: none;
+    font-family: var(--font); font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s;
+  }
+
+  .btn-primary {
+    background: var(--indigo); color: #fff;
+    box-shadow: 0 0 20px rgba(89,101,211,0.4);
+  }
+  .btn-primary:hover { background: #6472e8; transform: translateY(-1px); }
+
+  .btn-ghost {
+    background: var(--s2); color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { background: rgba(255,255,255,0.08); }
+
+  /* ── Main Layout ──────────────────────────────────────────────── */
+  main {
+    position: relative; z-index: 10;
+    flex: 1; display: grid;
+    grid-template-columns: 480px 1fr 340px;
+    gap: 0;
+    overflow: hidden;
+  }
+
+  /* ── Map Panel ────────────────────────────────────────────────── */
+  .map-panel {
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    background: rgba(13,13,31,0.6);
+  }
+
+  .panel-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; font-weight: 600; letter-spacing: 0.4px;
+    color: var(--muted); text-transform: uppercase;
+  }
+
+  .panel-header-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+  #map-canvas {
+    flex: 1;
+    display: block;
+    width: 100%; height: 100%;
+  }
+
+  /* ── Agents Panel ─────────────────────────────────────────────── */
+  .agents-panel {
+    display: flex; flex-direction: column;
+    border-right: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .agents-grid {
+    flex: 1;
+    display: grid; grid-template-columns: 1fr 1fr;
+    grid-template-rows: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--border);
+    overflow: hidden;
+  }
+
+  .agent-card {
+    background: var(--s1);
+    padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 8px;
+    position: relative; overflow: hidden;
+    transition: background 0.3s;
+  }
+
+  .agent-card::before {
+    content: '';
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--agent-color);
+    box-shadow: 0 0 12px var(--agent-color);
+  }
+
+  .agent-card.active { background: rgba(89,101,211,0.06); }
+
+  .agent-header {
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  .agent-icon {
+    width: 28px; height: 28px; border-radius: 7px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+
+  .agent-meta { flex: 1; min-width: 0; }
+
+  .agent-name {
+    font-size: 12px; font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  .agent-role {
+    font-size: 10px; color: var(--muted);
+    font-family: var(--mono);
+  }
+
+  .agent-reward {
+    font-family: var(--mono); font-size: 14px; font-weight: 500;
+    color: var(--agent-color);
+    text-align: right;
+  }
+
+  .action-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 8px; border-radius: 4px;
+    font-family: var(--mono); font-size: 10px; font-weight: 500;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    transition: all 0.4s;
+    width: fit-content;
+  }
+
+  .action-badge.active {
+    background: rgba(var(--action-r),var(--action-g),var(--action-b),0.15);
+    border-color: rgba(var(--action-r),var(--action-g),var(--action-b),0.4);
+    color: rgb(var(--action-r),var(--action-g),var(--action-b));
+  }
+
+  .reasoning {
+    font-size: 10px; color: var(--muted);
+    font-family: var(--mono);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    line-height: 1.4;
+  }
+
+  .coalition-indicator {
+    position: absolute; top: 10px; right: 10px;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--indigo);
+    box-shadow: 0 0 10px var(--indigo);
+    opacity: 0;
+    transition: opacity 0.5s;
+  }
+
+  .coalition-indicator.active { opacity: 1; }
+
+  /* ── Metrics Panel ────────────────────────────────────────────── */
+  .metrics-panel {
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+
+  .chart-wrap {
+    padding: 12px 16px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .chart-title {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.4px;
+    color: var(--muted); text-transform: uppercase; margin-bottom: 8px;
+  }
+
+  #otif-chart { width: 100% !important; height: 120px !important; }
+
+  .rewards-wrap {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .reward-row {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 7px;
+  }
+
+  .reward-label {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--muted); width: 52px; flex-shrink: 0;
+  }
+
+  .reward-bar-wrap {
+    flex: 1; height: 4px; border-radius: 2px;
+    background: rgba(255,255,255,0.06);
+    overflow: hidden;
+  }
+
+  .reward-bar {
+    height: 100%; border-radius: 2px;
+    background: linear-gradient(90deg, var(--bar-from), var(--bar-to));
+    transition: width 0.8s cubic-bezier(.4,0,.2,1);
+  }
+
+  .reward-val {
+    font-family: var(--mono); font-size: 10px;
+    width: 36px; text-align: right;
+    transition: color 0.4s;
+  }
+
+  .event-log {
+    flex: 1; overflow-y: auto; padding: 8px 0;
+  }
+
+  .event-log::-webkit-scrollbar { width: 3px; }
+  .event-log::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .log-entry {
+    padding: 7px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    display: flex; gap: 8px; align-items: flex-start;
+    animation: slide-in 0.35s ease;
+  }
+
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateX(-8px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  .log-turn {
+    font-family: var(--mono); font-size: 9px;
+    color: var(--muted); padding-top: 2px;
+    flex-shrink: 0; width: 28px;
+  }
+
+  .log-text {
+    font-size: 11px; line-height: 1.5;
+    color: rgba(255,255,255,0.7);
+  }
+
+  .log-text strong { color: var(--text); font-weight: 600; }
+
+  .log-icon { font-size: 13px; flex-shrink: 0; }
+
+  /* ── Footer / Timeline ────────────────────────────────────────── */
+  footer {
+    position: relative; z-index: 10;
+    border-top: 1px solid var(--border);
+    background: rgba(7,7,16,0.9);
+    backdrop-filter: blur(12px);
+    padding: 10px 24px;
+    display: flex; align-items: center; gap: 20px;
+  }
+
+  .timeline-track {
+    flex: 1; display: flex; align-items: center; gap: 0;
+    position: relative;
+  }
+
+  .timeline-line {
+    position: absolute; left: 0; right: 0; top: 50%;
+    height: 1px; background: var(--border);
+    transform: translateY(-50%);
+  }
+
+  .timeline-progress {
+    position: absolute; left: 0; top: 50%;
+    height: 2px; background: linear-gradient(90deg, var(--indigo), var(--cyan));
+    transform: translateY(-50%);
+    box-shadow: 0 0 10px var(--cyan);
+    transition: width 0.6s cubic-bezier(.4,0,.2,1);
+    border-radius: 1px;
+  }
+
+  .timeline-step {
+    position: relative; z-index: 1;
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  }
+
+  .step-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    border: 2px solid var(--border);
+    background: var(--bg);
+    transition: all 0.4s;
+  }
+
+  .step-dot.done {
+    background: var(--indigo);
+    border-color: var(--indigo);
+    box-shadow: 0 0 10px rgba(89,101,211,0.6);
+  }
+
+  .step-dot.current {
+    background: var(--cyan);
+    border-color: var(--cyan);
+    box-shadow: 0 0 14px var(--cyan);
+    animation: step-pulse 1.2s infinite;
+  }
+
+  @keyframes step-pulse {
+    0%,100% { transform: scale(1); }
+    50%      { transform: scale(1.35); }
+  }
+
+  .step-label {
+    font-size: 9px; font-family: var(--mono);
+    color: var(--muted); text-align: center;
+    max-width: 64px; line-height: 1.2;
+  }
+
+  .footer-stats {
+    display: flex; gap: 24px;
+  }
+
+  .stat-item {
+    text-align: right;
+  }
+
+  .stat-val {
+    font-family: var(--mono); font-size: 18px; font-weight: 500;
+    line-height: 1;
+  }
+
+  .stat-label {
+    font-size: 10px; color: var(--muted); margin-top: 2px;
+  }
+
+  /* ── Event Overlay ────────────────────────────────────────────── */
+  .event-overlay {
+    position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+    z-index: 100;
+    padding: 12px 24px; border-radius: 10px;
+    background: rgba(13,13,31,0.95);
+    border: 1px solid var(--border);
+    backdrop-filter: blur(20px);
+    font-size: 14px; font-weight: 600;
+    display: flex; align-items: center; gap: 10px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+
+  .event-overlay.show { opacity: 1; }
+
+  /* ── Delivery Burst ───────────────────────────────────────────── */
+  .burst {
+    position: absolute;
+    pointer-events: none;
+    z-index: 50;
+    animation: burst-anim 0.8s ease-out forwards;
+  }
+
+  @keyframes burst-anim {
+    0%   { transform: scale(0); opacity: 1; }
+    60%  { transform: scale(2.5); opacity: 0.8; }
+    100% { transform: scale(4); opacity: 0; }
+  }
+
+  /* ── Canvas disruption overlay ────────────────────────────────── */
+  .canvas-wrap {
+    position: relative; flex: 1;
+  }
+
+  /* ── Scrollbar ────────────────────────────────────────────────── */
+  * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent; }
+</style>
+</head>
+<body>
+
+<!-- Background -->
+<canvas id="bg-canvas"></canvas>
+<div class="grid-overlay"></div>
+
+<!-- Event overlay banner -->
+<div class="event-overlay" id="event-overlay">
+  <span id="event-icon"></span>
+  <span id="event-text"></span>
+</div>
+
+<!-- Header -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">🌐</div>
+    LogiCrisis
+    <span class="badge">v2</span>
+  </div>
+
+  <div class="header-center">
+    <div class="status-pill">
+      <div class="status-dot" id="status-dot"></div>
+      <span id="status-text">INITIALISING SIMULATION</span>
+    </div>
+  </div>
+
+  <div class="header-right">
+    <div class="otif-badge" id="otif-badge">OTIF — %</div>
+    <button class="btn btn-primary" id="run-btn" onclick="startSim()">▶ Run Simulation</button>
+    <button class="btn btn-ghost" onclick="resetSim()">↺ Reset</button>
+  </div>
+</header>
+
+<!-- Main -->
+<main>
+
+  <!-- Map -->
+  <div class="map-panel">
+    <div class="panel-header">
+      <div class="panel-header-dot" style="background:var(--cyan);box-shadow:0 0 8px var(--cyan)"></div>
+      India Supply Network — 10 Cities · 13 Routes
+    </div>
+    <div class="canvas-wrap">
+      <canvas id="map-canvas"></canvas>
+    </div>
+  </div>
+
+  <!-- Agents -->
+  <div class="agents-panel">
+    <div class="panel-header">
+      <div class="panel-header-dot" style="background:var(--indigo);box-shadow:0 0 8px var(--indigo)"></div>
+      6 AI Agents — Real-Time Decision Making
+    </div>
+    <div class="agents-grid" id="agents-grid">
+      <!-- Injected by JS -->
+    </div>
+  </div>
+
+  <!-- Metrics -->
+  <div class="metrics-panel">
+    <div class="panel-header">
+      <div class="panel-header-dot" style="background:var(--green);box-shadow:0 0 8px var(--green)"></div>
+      Live Metrics
+    </div>
+
+    <div class="chart-wrap">
+      <div class="chart-title">OTIF Recovery</div>
+      <canvas id="otif-chart"></canvas>
+    </div>
+
+    <div class="rewards-wrap">
+      <div class="chart-title" style="margin-bottom:10px">Reward Breakdown</div>
+      <div id="reward-bars"></div>
+    </div>
+
+    <div class="panel-header" style="font-size:11px">
+      <div class="panel-header-dot" style="background:var(--amber);box-shadow:0 0 6px var(--amber)"></div>
+      Event Log
+    </div>
+    <div class="event-log" id="event-log"></div>
+  </div>
+
+</main>
+
+<!-- Footer timeline -->
+<footer>
+  <div style="font-family:var(--mono);font-size:11px;color:var(--muted);width:60px">
+    Turn <span id="turn-display" style="color:var(--text);font-weight:600">0</span>
+  </div>
+
+  <div class="timeline-track" id="timeline-track">
+    <div class="timeline-line"></div>
+    <div class="timeline-progress" id="timeline-progress" style="width:0%"></div>
+  </div>
+
+  <div class="footer-stats">
+    <div class="stat-item">
+      <div class="stat-val" id="stat-deliveries" style="color:var(--green)">0/5</div>
+      <div class="stat-label">Delivered</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-val" id="stat-blocked" style="color:var(--red)">0</div>
+      <div class="stat-label">Blocked Routes</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-val" id="stat-coalition" style="color:var(--indigo)">—</div>
+      <div class="stat-label">Coalition</div>
+    </div>
+  </div>
+</footer>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// ════════════════════════════════════════════════════════════════
+//  DATA — Real LogiCrisis topology
+// ════════════════════════════════════════════════════════════════
+
+const CITIES = {
+  Mumbai:    { x: 101, y: 314, region: "West",  label: "MUM" },
+  Delhi:     { x: 162, y: 162, region: "North", label: "DEL" },
+  Kolkata:   { x: 325, y: 259, region: "East",  label: "KOL" },
+  Chennai:   { x: 208, y: 409, region: "South", label: "CHE" },
+  Bangalore: { x: 169, y: 411, region: "South", label: "BLR" },
+  Hyderabad: { x: 182, y: 341, region: "South", label: "HYD" },
+  Pune:      { x: 115, y: 323, region: "West",  label: "PNE" },
+  Ahmedabad: { x:  96, y: 252, region: "West",  label: "AMD" },
+  Jaipur:    { x: 143, y: 190, region: "North", label: "JAI" },
+  Surat:     { x: 100, y: 281, region: "West",  label: "SRT" },
+};
+
+const ROUTES = [
+  { id: "Mumbai-Pune",        from: "Mumbai",    to: "Pune",      dist: 150  },
+  { id: "Mumbai-Ahmedabad",   from: "Mumbai",    to: "Ahmedabad", dist: 530  },
+  { id: "Mumbai-Surat",       from: "Mumbai",    to: "Surat",     dist: 290  },
+  { id: "Delhi-Jaipur",       from: "Delhi",     to: "Jaipur",    dist: 280  },
+  { id: "Delhi-Ahmedabad",    from: "Delhi",     to: "Ahmedabad", dist: 950  },
+  { id: "Kolkata-Hyderabad",  from: "Kolkata",   to: "Hyderabad", dist: 1500 },
+  { id: "Chennai-Bangalore",  from: "Chennai",   to: "Bangalore", dist: 350  },
+  { id: "Chennai-Hyderabad",  from: "Chennai",   to: "Hyderabad", dist: 630  },
+  { id: "Bangalore-Hyderabad",from: "Bangalore", to: "Hyderabad", dist: 570  },
+  { id: "Bangalore-Pune",     from: "Bangalore", to: "Pune",      dist: 840  },
+  { id: "Pune-Hyderabad",     from: "Pune",      to: "Hyderabad", dist: 560  },
+  { id: "Ahmedabad-Jaipur",   from: "Ahmedabad", to: "Jaipur",    dist: 670  },
+  { id: "Surat-Ahmedabad",    from: "Surat",     to: "Ahmedabad", dist: 260  },
+];
+
+const AGENTS = [
+  { id: "carrier_0",        role: "Carrier",          label: "Carrier",       icon: "🚚", color: "#00d4ff" },
+  { id: "warehouse_0",      role: "Warehouse",        label: "Warehouse",     icon: "🏭", color: "#00ff88" },
+  { id: "customs_broker_0", role: "Customs Broker",   label: "Customs",       icon: "📋", color: "#ffaa00" },
+  { id: "insurer_0",        role: "Insurer",          label: "Insurer",       icon: "🛡️", color: "#a855f7" },
+  { id: "shipper_0",        role: "Shipper",          label: "Shipper",       icon: "📦", color: "#f97316" },
+  { id: "geo_analyst_0",    role: "Geo Analyst",      label: "GeoAnalyst",    icon: "🌐", color: "#ec4899" },
+];
+
+// ════════════════════════════════════════════════════════════════
+//  SIMULATION SCRIPT — 5 turns
+// ════════════════════════════════════════════════════════════════
+
+const SCRIPT = [
+  {
+    turn: 0, otif: 0, deliveries: 0,
+    title: "Supply Network Online",
+    icon: "🟢",
+    blocked: [], recovering: [], disruptions: [],
+    coalition: false,
+    cargo: [
+      { id:"C001", from:"Delhi",     to:"Chennai",   t:0.15, route:"Delhi-Jaipur",       status:"transit"  },
+      { id:"C002", from:"Mumbai",    to:"Kolkata",   t:0.0,  route:null,                status:"pending"  },
+      { id:"C003", from:"Bangalore", to:"Pune",      t:0.2,  route:"Bangalore-Pune",     status:"transit"  },
+      { id:"C004", from:"Surat",     to:"Jaipur",    t:0.1,  route:"Surat-Ahmedabad",    status:"transit"  },
+      { id:"C005", from:"Hyderabad", to:"Delhi",     t:0.0,  route:null,                status:"pending"  },
+    ],
+    actions: {
+      carrier_0:        { action:"WAIT",                     r: 0.00, reasoning:"Assessing network state..." },
+      warehouse_0:      { action:"WAIT",                     r: 0.00, reasoning:"Monitoring cargo queues..." },
+      customs_broker_0: { action:"WAIT",                     r: 0.00, reasoning:"Checking port clearances..." },
+      insurer_0:        { action:"WAIT",                     r: 0.00, reasoning:"Risk assessment initialising..." },
+      shipper_0:        { action:"WAIT",                     r: 0.00, reasoning:"Coordinating pickups..." },
+      geo_analyst_0:    { action:"WAIT",                     r: 0.00, reasoning:"Scanning geopolitical feeds..." },
+    },
+    logEntries: [
+      { icon:"🟢", text:"<strong>Network initialised.</strong> 10 cities, 13 routes, 6 agents online." },
+      { icon:"📦", text:"5 cargo items queued. 2 cold-chain, 1 urgent, 2 standard." },
+      { icon:"🤖", text:"Agents activating. Theory-of-mind belief tracking enabled." },
+    ],
+    rewards: { R1: 0, R2: 0, R3: 0, R4: 0, R5: 0, R7: 0 },
+  },
+  {
+    turn: 1, otif: 0, deliveries: 0,
+    title: "⚠️ FLOOD — Mumbai Hub Disrupted",
+    icon: "🌊",
+    blocked: ["Mumbai-Pune","Mumbai-Ahmedabad","Mumbai-Surat"],
+    recovering: [], disruptions: ["Mumbai"],
+    coalition: false,
+    cargo: [
+      { id:"C001", from:"Delhi",     to:"Chennai",   t:0.35, route:"Delhi-Jaipur",       status:"transit"  },
+      { id:"C002", from:"Mumbai",    to:"Kolkata",   t:0.0,  route:null,                status:"BLOCKED"  },
+      { id:"C003", from:"Bangalore", to:"Pune",      t:0.4,  route:"Bangalore-Pune",     status:"transit"  },
+      { id:"C004", from:"Surat",     to:"Jaipur",    t:0.35, route:"Surat-Ahmedabad",    status:"transit"  },
+      { id:"C005", from:"Hyderabad", to:"Delhi",     t:0.0,  route:null,                status:"pending"  },
+    ],
+    actions: {
+      carrier_0:        { action:"REROUTE",                  r:-0.40, reasoning:"Mumbai blocked → Kolkata-Hyderabad corridor" },
+      warehouse_0:      { action:"PROPOSE_COALITION",        r: 0.10, reasoning:"Emergency coalition COAL_01 — requesting all agents" },
+      customs_broker_0: { action:"PRIORITIZE_CARGO",         r: 0.20, reasoning:"C002 pharma escalated — priority=CRITICAL" },
+      insurer_0:        { action:"MAKE_BID",                 r: 0.00, reasoning:"Bidding for excess carrier capacity..." },
+      shipper_0:        { action:"REQUEST_TRANSFER",         r: 0.10, reasoning:"Requesting Pune depot capacity" },
+      geo_analyst_0:    { action:"ISSUE_GEOPOLITICAL_ALERT", r: 0.30, reasoning:"Flood alert issued — SW corridor compromised" },
+    },
+    logEntries: [
+      { icon:"🌊", text:"<strong>FLOOD DETECTED</strong> at Mumbai. Severity 4/5." },
+      { icon:"🔴", text:"Routes blocked: Mumbai–Pune, Mumbai–Ahmedabad, Mumbai–Surat." },
+      { icon:"🚨", text:"C002 cargo STRANDED at Mumbai origin node." },
+      { icon:"🌐", text:"GeoAnalyst issuing geopolitical alert for SW corridor." },
+      { icon:"🤝", text:"Warehouse proposing emergency coalition COAL_01." },
+    ],
+    rewards: { R1: 0, R2: 0, R3: 0.2, R4: 0, R5: -0.1, R7: -0.4 },
+  },
+  {
+    turn: 2, otif: 20, deliveries: 1,
+    title: "🤝 Coalition Formed — Emergency Response",
+    icon: "🤝",
+    blocked: ["Mumbai-Pune","Mumbai-Ahmedabad","Mumbai-Surat"],
+    recovering: [], disruptions: ["Mumbai"],
+    coalition: true,
+    cargo: [
+      { id:"C001", from:"Delhi",     to:"Chennai",   t:1.0,  route:"Delhi-Jaipur",       status:"DELIVERED" },
+      { id:"C002", from:"Mumbai",    to:"Kolkata",   t:0.15, route:"Kolkata-Hyderabad",  status:"REROUTING" },
+      { id:"C003", from:"Bangalore", to:"Pune",      t:0.65, route:"Bangalore-Pune",     status:"transit"   },
+      { id:"C004", from:"Surat",     to:"Jaipur",    t:0.65, route:"Ahmedabad-Jaipur",   status:"transit"   },
+      { id:"C005", from:"Hyderabad", to:"Delhi",     t:0.2,  route:"Kolkata-Hyderabad",  status:"transit"   },
+    ],
+    actions: {
+      carrier_0:        { action:"REROUTE",              r: 0.80, reasoning:"C002 via Kolkata–Hyderabad (+1500km)" },
+      warehouse_0:      { action:"JOIN_COALITION",       r: 0.30, reasoning:"COAL_01 joined — capacity pool shared" },
+      customs_broker_0: { action:"DEPLOY_COLD_STORAGE",  r: 0.90, reasoning:"C003 cold chain secured at Pune depot" },
+      insurer_0:        { action:"ACCEPT_BID",           r: 0.20, reasoning:"Carrier bid accepted — $1,200 capacity trade" },
+      shipper_0:        { action:"JOIN_COALITION",       r: 0.30, reasoning:"COAL_01 joined — fleet redistribution" },
+      geo_analyst_0:    { action:"NEGOTIATE_TRADE_CORRIDOR", r: 0.50, reasoning:"Gujarat–Rajasthan alternative lane opened" },
+    },
+    logEntries: [
+      { icon:"✅", text:"<strong>C001 DELIVERED</strong> Delhi→Chennai. On time. +1.0 R1 reward." },
+      { icon:"🤝", text:"Coalition COAL_01 formed. Members: carrier, warehouse, shipper." },
+      { icon:"❄️", text:"Cold storage deployed for C003 pharma cargo at Pune." },
+      { icon:"💰", text:"Capacity bid executed: $1,200 transfer carrier→insurer." },
+      { icon:"🛤️", text:"GeoAnalyst opens Gujarat–Rajasthan alternative corridor." },
+    ],
+    rewards: { R1: 1.0, R2: 0.3, R3: 0.4, R4: 0.9, R5: 0.2, R7: -0.8 },
+  },
+  {
+    turn: 3, otif: 60, deliveries: 3,
+    title: "🔄 Stochastic Recovery — Route Healing",
+    icon: "🔄",
+    blocked: ["Mumbai-Pune","Mumbai-Ahmedabad"],
+    recovering: ["Mumbai-Surat"],
+    disruptions: ["Mumbai"],
+    coalition: true,
+    cargo: [
+      { id:"C001", status:"DELIVERED" },
+      { id:"C002", from:"Mumbai",    to:"Kolkata",   t:1.0,  route:"Kolkata-Hyderabad",  status:"DELIVERED" },
+      { id:"C003", from:"Bangalore", to:"Pune",      t:1.0,  route:"Bangalore-Pune",     status:"DELIVERED" },
+      { id:"C004", from:"Surat",     to:"Jaipur",    t:0.85, route:"Ahmedabad-Jaipur",   status:"transit"   },
+      { id:"C005", from:"Hyderabad", to:"Delhi",     t:0.7,  route:"Kolkata-Hyderabad",  status:"transit"   },
+    ],
+    actions: {
+      carrier_0:        { action:"REROUTE",       r: 1.20, reasoning:"C005 on final leg to Delhi via Jaipur" },
+      warehouse_0:      { action:"WAIT",          r: 0.50, reasoning:"Coalition handoff complete — monitoring" },
+      customs_broker_0: { action:"ACCEPT_BID",   r: 1.10, reasoning:"Cross-region capacity settled successfully" },
+      insurer_0:        { action:"WAIT",          r: 0.80, reasoning:"No claims. Fleet fully insured. Reputation +0.2" },
+      shipper_0:        { action:"REROUTE",       r: 1.00, reasoning:"C004 on final approach to Jaipur" },
+      geo_analyst_0:    { action:"WAIT",          r: 0.60, reasoning:"Mumbai–Surat 15% early recovery detected ✓" },
+    },
+    logEntries: [
+      { icon:"✅", text:"<strong>C002 DELIVERED</strong> via Kolkata–Hyderabad reroute. On time." },
+      { icon:"✅", text:"<strong>C003 DELIVERED</strong> Bangalore→Pune. Cold chain intact. R4=1.0." },
+      { icon:"🔄", text:"<strong>Route healing:</strong> Mumbai–Surat recovering (15% early recovery trigger)." },
+      { icon:"📊", text:"OTIF climbing to 60%. Coalition efficiency score: 0.9." },
+    ],
+    rewards: { R1: 2.0, R2: 0.6, R3: 0.6, R4: 1.8, R5: 0.5, R7: -1.2 },
+  },
+  {
+    turn: 4, otif: 100, deliveries: 5,
+    title: "✅ All Cargo Delivered — OTIF 100%",
+    icon: "🏆",
+    blocked: [], recovering: [], disruptions: [],
+    coalition: false,
+    cargo: [
+      { id:"C001", status:"DELIVERED" },
+      { id:"C002", status:"DELIVERED" },
+      { id:"C003", status:"DELIVERED" },
+      { id:"C004", status:"DELIVERED" },
+      { id:"C005", status:"DELIVERED" },
+    ],
+    actions: {
+      carrier_0:        { action:"WAIT", r: 2.10, reasoning:"Mission complete. All cargo delivered ✓" },
+      warehouse_0:      { action:"WAIT", r: 1.80, reasoning:"COAL_01 dissolved gracefully ✓" },
+      customs_broker_0: { action:"WAIT", r: 2.30, reasoning:"All clearances verified. Zero breaches ✓" },
+      insurer_0:        { action:"WAIT", r: 1.50, reasoning:"No claims filed. Reputation: +0.4 ✓" },
+      shipper_0:        { action:"WAIT", r: 1.90, reasoning:"Fleet returned to base. Efficiency 94% ✓" },
+      geo_analyst_0:    { action:"WAIT", r: 1.20, reasoning:"All alerts cleared. Routes nominal ✓" },
+    },
+    logEntries: [
+      { icon:"✅", text:"<strong>C004 DELIVERED</strong> Surat→Jaipur. On time." },
+      { icon:"✅", text:"<strong>C005 DELIVERED</strong> Hyderabad→Delhi. On time." },
+      { icon:"🏆", text:"<strong>EPISODE COMPLETE.</strong> OTIF: 100%. Score: 1.00. All routes restored." },
+      { icon:"🌱", text:"Carbon footprint R7: −1.2 (within acceptable reroute threshold)." },
+      { icon:"🤖", text:"Anti-cheat R6: 0.0 — zero violations. Clean episode." },
+    ],
+    rewards: { R1: 3.0, R2: 0.9, R3: 0.8, R4: 1.8, R5: 0.9, R7: -1.2 },
+  },
+];
+
+const STEP_LABELS = ["Init","Flood","Coalition","Recovery","Done ✓"];
+
+// ════════════════════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════════════════════
+
+let simState = {
+  turn: -1,
+  running: false,
+  timer: null,
+  particles: [],
+};
+
+// ════════════════════════════════════════════════════════════════
+//  BACKGROUND PARTICLES
+// ════════════════════════════════════════════════════════════════
+
+(function initBg() {
+  const canvas = document.getElementById('bg-canvas');
+  const ctx    = canvas.getContext('2d');
+  let W, H, stars = [];
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+    stars = Array.from({length: 120}, () => ({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      r: Math.random() * 1.2 + 0.3,
+      speed: Math.random() * 0.15 + 0.05,
+      opacity: Math.random() * 0.6 + 0.1,
+    }));
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    // Subtle orbs
+    [[W*.15, H*.3, 300, '#5965d3'], [W*.85, H*.7, 200, '#00d4ff'], [W*.5, H*.9, 250, '#a855f7']].forEach(([x,y,r,c]) => {
+      const g = ctx.createRadialGradient(x,y,0,x,y,r);
+      g.addColorStop(0, c+'1a'); g.addColorStop(1, 'transparent');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+    });
+    // Stars
+    stars.forEach(s => {
+      s.y -= s.speed;
+      if (s.y < 0) { s.y = H; s.x = Math.random() * W; }
+      ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(255,255,255,${s.opacity})`;
+      ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+
+  resize();
+  window.addEventListener('resize', resize);
+  draw();
+})();
+
+// ════════════════════════════════════════════════════════════════
+//  MAP CANVAS
+// ════════════════════════════════════════════════════════════════
+
+const mapCanvas = document.getElementById('map-canvas');
+const mctx      = mapCanvas.getContext('2d');
+
+let mapW = 480, mapH = 500;
+let routeStates  = {};   // id → 'open'|'blocked'|'recovering'
+let nodeStates   = {};   // city → 'normal'|'disrupted'
+let activeParticles = [];// [{route, t, color}]
+let pulseTimers  = {};   // city → phase
+
+ROUTES.forEach(r => { routeStates[r.id]    = 'open'; });
+Object.keys(CITIES).forEach(c => { nodeStates[c] = 'normal'; pulseTimers[c] = 0; });
+
+function resizeMap() {
+  const wrap = mapCanvas.parentElement;
+  mapW = wrap.clientWidth;
+  mapH = wrap.clientHeight;
+  mapCanvas.width  = mapW;
+  mapCanvas.height = mapH;
+}
+
+function cityPos(name) {
+  const c = CITIES[name];
+  // Scale city coordinates (designed for 480x520) to actual canvas size
+  const sx = mapW / 480;
+  const sy = mapH / 500;
+  return { x: c.x * sx, y: c.y * sy };
+}
+
+function routeColor(state) {
+  return state === 'open' ? '#00d4ff' : state === 'blocked' ? '#ff4444' : '#ffaa00';
+}
+
+function drawMapFrame(ts) {
+  mctx.clearRect(0, 0, mapW, mapH);
+
+  // Subtle India silhouette region markers
+  const regions = [
+    { label:'NORTH', x: 155, y: 145, color:'rgba(89,101,211,0.1)' },
+    { label:'WEST',  x:  85, y: 290, color:'rgba(0,212,255,0.07)' },
+    { label:'SOUTH', x: 190, y: 420, color:'rgba(168,85,247,0.08)' },
+    { label:'EAST',  x: 330, y: 240, color:'rgba(0,255,136,0.07)' },
+  ];
+  regions.forEach(({label, x, y, color}) => {
+    const sx = mapW/480, sy = mapH/500;
+    mctx.fillStyle = color;
+    mctx.font = `600 9px 'Space Grotesk'`;
+    mctx.letterSpacing = '1.5px';
+    mctx.fillStyle = 'rgba(255,255,255,0.08)';
+    mctx.fillText(label, x*sx, y*sy);
+  });
+
+  // Draw routes
+  ROUTES.forEach(route => {
+    const from = cityPos(route.from);
+    const to   = cityPos(route.to);
+    const state = routeStates[route.id];
+    const color = routeColor(state);
+
+    // Glow pass
+    mctx.save();
+    mctx.shadowColor  = color;
+    mctx.shadowBlur   = state === 'open' ? 6 : 12;
+    mctx.strokeStyle  = color;
+    mctx.globalAlpha  = state === 'open' ? 0.5 : 0.85;
+    mctx.lineWidth    = state === 'open' ? 1.5 : 2.5;
+    if (state === 'recovering') {
+      mctx.setLineDash([6, 4]);
+    }
+    mctx.beginPath();
+    mctx.moveTo(from.x, from.y);
+    // Slight bezier curve
+    const mx = (from.x + to.x) / 2;
+    const my = (from.y + to.y) / 2 - 10;
+    mctx.quadraticCurveTo(mx, my, to.x, to.y);
+    mctx.stroke();
+    mctx.setLineDash([]);
+    mctx.restore();
+
+    // Distance label
+    if (state !== 'blocked') {
+      mctx.save();
+      mctx.globalAlpha = 0.3;
+      mctx.font = `9px 'JetBrains Mono'`;
+      mctx.fillStyle = '#fff';
+      mctx.fillText(`${route.dist}km`, (from.x+to.x)/2+4, (from.y+to.y)/2-4);
+      mctx.restore();
+    }
+  });
+
+  // Draw cargo particles
+  activeParticles.forEach(p => {
+    p.t += p.speed;
+    if (p.t > 1) { p.t = 0; } // loop for demo
+    const route = ROUTES.find(r => r.id === p.routeId);
+    if (!route) return;
+    const from = cityPos(route.from);
+    const to   = cityPos(route.to);
+    const mx = (from.x + to.x) / 2;
+    const my = (from.y + to.y) / 2 - 10;
+    // Quadratic bezier position
+    const t = p.t;
+    const x = (1-t)*(1-t)*from.x + 2*(1-t)*t*mx + t*t*to.x;
+    const y = (1-t)*(1-t)*from.y + 2*(1-t)*t*my + t*t*to.y;
+
+    mctx.save();
+    mctx.shadowColor = p.color;
+    mctx.shadowBlur  = 10;
+    mctx.fillStyle   = p.color;
+    mctx.beginPath();
+    mctx.arc(x, y, 4, 0, Math.PI*2);
+    mctx.fill();
+    // Trail
+    mctx.globalAlpha = 0.3;
+    mctx.beginPath();
+    mctx.arc(x, y, 7, 0, Math.PI*2);
+    mctx.fill();
+    mctx.restore();
+  });
+
+  // Draw city nodes
+  Object.entries(CITIES).forEach(([name, data]) => {
+    const pos    = cityPos(name);
+    const state  = nodeStates[name];
+    pulseTimers[name] = (pulseTimers[name] || 0) + 0.04;
+    const pulse  = Math.sin(pulseTimers[name]) * 0.5 + 0.5;
+
+    const color  = state === 'disrupted' ? '#ff4444' :
+                   state === 'recovering' ? '#ffaa00' : '#00d4ff';
+
+    // Outer pulse ring
+    if (state === 'disrupted') {
+      mctx.save();
+      mctx.globalAlpha = pulse * 0.4;
+      mctx.shadowColor = '#ff4444';
+      mctx.shadowBlur  = 20;
+      mctx.strokeStyle = '#ff4444';
+      mctx.lineWidth   = 1.5;
+      mctx.beginPath();
+      mctx.arc(pos.x, pos.y, 14 + pulse * 8, 0, Math.PI*2);
+      mctx.stroke();
+      mctx.restore();
+    }
+
+    // Node circle
+    mctx.save();
+    mctx.shadowColor = color;
+    mctx.shadowBlur  = state === 'disrupted' ? 20 : 12;
+    mctx.fillStyle   = state === 'disrupted' ? '#2a0a0a' : '#0a1a2a';
+    mctx.strokeStyle = color;
+    mctx.lineWidth   = 2;
+    mctx.beginPath();
+    mctx.arc(pos.x, pos.y, 7, 0, Math.PI*2);
+    mctx.fill(); mctx.stroke();
+    mctx.restore();
+
+    // Center dot
+    mctx.save();
+    mctx.fillStyle   = color;
+    mctx.shadowColor = color;
+    mctx.shadowBlur  = 8;
+    mctx.beginPath();
+    mctx.arc(pos.x, pos.y, 3, 0, Math.PI*2);
+    mctx.fill();
+    mctx.restore();
+
+    // City label
+    mctx.save();
+    mctx.font        = `600 9px 'JetBrains Mono'`;
+    mctx.fillStyle   = state === 'disrupted' ? '#ff8888' : 'rgba(255,255,255,0.75)';
+    mctx.textAlign   = 'center';
+    mctx.fillText(data.label, pos.x, pos.y + 19);
+    mctx.restore();
+  });
+
+  requestAnimationFrame(drawMapFrame);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  OTIF CHART
+// ════════════════════════════════════════════════════════════════
+
+let chart;
+function initChart() {
+  const ctx = document.getElementById('otif-chart').getContext('2d');
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: ['T0'],
+      datasets: [{
+        label: 'OTIF %',
+        data: [0],
+        borderColor: '#00d4ff',
+        backgroundColor: 'rgba(0,212,255,0.08)',
+        borderWidth: 2,
+        pointBackgroundColor: '#00d4ff',
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        fill: true,
+        tension: 0.45,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 600 },
+      scales: {
+        x: { ticks: { color:'rgba(255,255,255,0.4)', font:{size:10} }, grid: { color:'rgba(255,255,255,0.05)' } },
+        y: { min:0, max:100, ticks: { color:'rgba(255,255,255,0.4)', font:{size:10} }, grid: { color:'rgba(255,255,255,0.05)' } }
+      },
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+
+function updateChart(turn, otif) {
+  chart.data.labels.push(`T${turn}`);
+  chart.data.datasets[0].data.push(otif);
+  chart.update();
+}
+
+// ════════════════════════════════════════════════════════════════
+//  REWARD BARS
+// ════════════════════════════════════════════════════════════════
+
+const REWARD_DEFS = [
+  { key:'R1', label:'R1 Delivery', from:'#00ff88', to:'#00d4ff' },
+  { key:'R2', label:'R2 Coalition', from:'#5965d3', to:'#a855f7' },
+  { key:'R3', label:'R3 Negotiate', from:'#ffaa00', to:'#ff6b00' },
+  { key:'R4', label:'R4 Cold Chain', from:'#00d4ff', to:'#00ff88' },
+  { key:'R5', label:'R5 Efficiency', from:'#a855f7', to:'#ec4899' },
+  { key:'R7', label:'R7 Carbon', from:'#ff4444', to:'#ffaa00' },
+];
+
+function initRewardBars() {
+  const wrap = document.getElementById('reward-bars');
+  wrap.innerHTML = REWARD_DEFS.map(d => `
+    <div class="reward-row" id="rrow-${d.key}">
+      <span class="reward-label">${d.label}</span>
+      <div class="reward-bar-wrap">
+        <div class="reward-bar" id="rbar-${d.key}"
+          style="--bar-from:${d.from};--bar-to:${d.to};width:0%"></div>
+      </div>
+      <span class="reward-val" id="rval-${d.key}" style="color:${d.from}">0.0</span>
+    </div>
+  `).join('');
+}
+
+function updateRewardBars(rewards) {
+  const maxVal = 3.5;
+  REWARD_DEFS.forEach(d => {
+    const val = rewards[d.key] || 0;
+    const pct = Math.abs(val) / maxVal * 100;
+    document.getElementById(`rbar-${d.key}`).style.width = pct + '%';
+    const el = document.getElementById(`rval-${d.key}`);
+    el.textContent = (val >= 0 ? '+' : '') + val.toFixed(1);
+    el.style.color = val < 0 ? '#ff4444' : d.from;
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+//  AGENT CARDS
+// ════════════════════════════════════════════════════════════════
+
+function initAgentCards() {
+  const grid = document.getElementById('agents-grid');
+  grid.innerHTML = AGENTS.map(a => `
+    <div class="agent-card" id="card-${a.id}" style="--agent-color:${a.color}">
+      <div class="coalition-indicator" id="coal-${a.id}"></div>
+      <div class="agent-header">
+        <div class="agent-icon">${a.icon}</div>
+        <div class="agent-meta">
+          <div class="agent-name">${a.label}</div>
+          <div class="agent-role">${a.role.toLowerCase()}</div>
+        </div>
+        <div class="agent-reward" id="reward-${a.id}">+0.00</div>
+      </div>
+      <div class="action-badge" id="action-${a.id}">WAIT</div>
+      <div class="reasoning" id="reason-${a.id}">Initialising...</div>
+    </div>
+  `).join('');
+}
+
+const ACTION_COLORS = {
+  REROUTE:                  [0,212,255],
+  PROPOSE_COALITION:        [89,101,211],
+  JOIN_COALITION:           [89,101,211],
+  DEPLOY_COLD_STORAGE:      [0,200,255],
+  PRIORITIZE_CARGO:         [255,170,0],
+  ISSUE_GEOPOLITICAL_ALERT: [236,72,153],
+  NEGOTIATE_TRADE_CORRIDOR: [236,72,153],
+  MAKE_BID:                 [168,85,247],
+  ACCEPT_BID:               [0,255,136],
+  REQUEST_TRANSFER:         [249,115,22],
+  WAIT:                     [80,80,100],
+};
+
+function updateAgentCards(actions, coalition) {
+  AGENTS.forEach(a => {
+    const act = actions[a.id];
+    if (!act) return;
+    const card    = document.getElementById(`card-${a.id}`);
+    const actionEl= document.getElementById(`action-${a.id}`);
+    const reasonEl= document.getElementById(`reason-${a.id}`);
+    const rewardEl= document.getElementById(`reward-${a.id}`);
+    const coalEl  = document.getElementById(`coal-${a.id}`);
+
+    rewardEl.textContent = (act.r >= 0 ? '+' : '') + act.r.toFixed(2);
+    rewardEl.style.color = a.color;
+    reasonEl.textContent = act.reasoning;
+
+    const rgb = ACTION_COLORS[act.action] || [80,80,100];
+    actionEl.textContent = act.action.replace(/_/g,' ');
+    actionEl.className   = 'action-badge' + (act.action !== 'WAIT' ? ' active' : '');
+    actionEl.style.setProperty('--action-r', rgb[0]);
+    actionEl.style.setProperty('--action-g', rgb[1]);
+    actionEl.style.setProperty('--action-b', rgb[2]);
+
+    coalEl.className = 'coalition-indicator' + (coalition ? ' active' : '');
+    card.classList.toggle('active', act.action !== 'WAIT');
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+//  TIMELINE
+// ════════════════════════════════════════════════════════════════
+
+function initTimeline() {
+  const track = document.getElementById('timeline-track');
+  // Remove old steps
+  track.querySelectorAll('.timeline-step').forEach(e => e.remove());
+  STEP_LABELS.forEach((label, i) => {
+    const step = document.createElement('div');
+    step.className = 'timeline-step';
+    step.id = `tstep-${i}`;
+    step.innerHTML = `
+      <div class="step-dot" id="tdot-${i}"></div>
+      <div class="step-label">${label}</div>
+    `;
+    track.appendChild(step);
+  });
+}
+
+function updateTimeline(turn) {
+  const total = SCRIPT.length - 1;
+  document.getElementById('timeline-progress').style.width =
+    (turn / total * 100) + '%';
+  STEP_LABELS.forEach((_, i) => {
+    const dot = document.getElementById(`tdot-${i}`);
+    if (!dot) return;
+    dot.className = 'step-dot ' +
+      (i < turn ? 'done' : i === turn ? 'current' : '');
+  });
+  document.getElementById('turn-display').textContent = turn;
+}
+
+// ════════════════════════════════════════════════════════════════
+//  EVENT LOG
+// ════════════════════════════════════════════════════════════════
+
+function addLogEntries(turn, entries) {
+  const log = document.getElementById('event-log');
+  entries.forEach((e, i) => {
+    setTimeout(() => {
+      const div = document.createElement('div');
+      div.className = 'log-entry';
+      div.innerHTML = `
+        <span class="log-icon">${e.icon}</span>
+        <span class="log-turn">T${turn}</span>
+        <span class="log-text">${e.text}</span>
+      `;
+      log.prepend(div);
+    }, i * 200);
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+//  EVENT OVERLAY BANNER
+// ════════════════════════════════════════════════════════════════
+
+function showBanner(icon, text, color='#00d4ff') {
+  const el = document.getElementById('event-overlay');
+  document.getElementById('event-icon').textContent = icon;
+  document.getElementById('event-text').textContent = text;
+  el.style.borderColor = color;
+  el.style.color = color;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3200);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  STATUS BAR
+// ════════════════════════════════════════════════════════════════
+
+function updateHeader(frame) {
+  document.getElementById('status-text').textContent = frame.title;
+  document.getElementById('otif-badge').textContent  = `OTIF ${frame.otif}%`;
+  document.getElementById('stat-deliveries').textContent = `${frame.deliveries}/5`;
+  document.getElementById('stat-blocked').textContent    = frame.blocked.length;
+  document.getElementById('stat-coalition').textContent  = frame.coalition ? 'COAL_01 ✓' : '—';
+
+  const dot = document.getElementById('status-dot');
+  dot.style.background = frame.otif === 100 ? '#00ff88' :
+                         frame.blocked.length > 0 ? '#ff4444' : '#00d4ff';
+  dot.style.boxShadow  = `0 0 8px ${dot.style.background}`;
+}
+
+// ════════════════════════════════════════════════════════════════
+//  CARGO PARTICLES
+// ════════════════════════════════════════════════════════════════
+
+const CARGO_COLORS = ['#00d4ff','#00ff88','#ffaa00','#a855f7','#ec4899'];
+
+function syncParticles(cargo) {
+  activeParticles = [];
+  cargo.forEach((c, i) => {
+    if (c.status === 'transit' || c.status === 'REROUTING') {
+      if (c.route && ROUTES.find(r => r.id === c.route)) {
+        activeParticles.push({
+          routeId: c.route,
+          t:       c.t || 0,
+          speed:   0.004 + Math.random() * 0.002,
+          color:   CARGO_COLORS[i % CARGO_COLORS.length],
+        });
+      }
+    }
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+//  DELIVERY BURST EFFECT
+// ════════════════════════════════════════════════════════════════
+
+function deliveryBurst(cityName) {
+  const pos  = cityPos(cityName);
+  const wrap = mapCanvas.parentElement;
+  const rect = wrap.getBoundingClientRect();
+  const el   = document.createElement('div');
+  el.className = 'burst';
+  el.style.cssText = `
+    left: ${rect.left + pos.x - 16}px;
+    top:  ${rect.top  + pos.y - 16}px;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(0,255,136,0.9), transparent);
+  `;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 900);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  APPLY FRAME
+// ════════════════════════════════════════════════════════════════
+
+function applyFrame(frame, prevFrame) {
+  // Route states
+  ROUTES.forEach(r => {
+    routeStates[r.id] = frame.blocked.includes(r.id) ? 'blocked' :
+                        frame.recovering.includes(r.id) ? 'recovering' : 'open';
+  });
+
+  // Node states
+  Object.keys(CITIES).forEach(c => {
+    nodeStates[c] = frame.disruptions.includes(c) ? 'disrupted' : 'normal';
+  });
+
+  // Cargo particles
+  syncParticles(frame.cargo);
+
+  // Delivery bursts (new deliveries this turn)
+  if (prevFrame) {
+    frame.cargo.forEach((c, i) => {
+      const prev = prevFrame.cargo[i];
+      if (prev && prev.status !== 'DELIVERED' && c.status === 'DELIVERED') {
+        // Deliver to destination
+        if (c.to) deliveryBurst(c.to);
+      }
+    });
+  }
+
+  // Agent cards
+  updateAgentCards(frame.actions, frame.coalition);
+
+  // Reward bars
+  updateRewardBars(frame.rewards);
+
+  // Timeline
+  updateTimeline(frame.turn);
+
+  // Header
+  updateHeader(frame);
+
+  // OTIF chart
+  if (frame.turn > 0 || simState.turn === 0) {
+    updateChart(frame.turn, frame.otif);
+  }
+
+  // Log
+  addLogEntries(frame.turn, frame.logEntries || []);
+
+  // Banner
+  const bannerMap = {
+    FLOOD:          ['🌊', 'FLOOD DETECTED — Mumbai hub disrupted', '#ff4444'],
+    COALITION_FORM: ['🤝', 'Coalition COAL_01 formed — emergency response', '#5965d3'],
+    ROUTE_RECOVERY: ['🔄', 'Stochastic recovery — Mumbai–Surat healing (15% early)', '#ffaa00'],
+    COMPLETE:       ['🏆', 'EPISODE COMPLETE — OTIF 100% — Score: 1.00', '#00ff88'],
+  };
+  if (frame.event && bannerMap[frame.event]) {
+    const [icon, text, color] = bannerMap[frame.event];
+    setTimeout(() => showBanner(icon, text, color), 400);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  SIM CONTROL
+// ════════════════════════════════════════════════════════════════
+
+function startSim() {
+  if (simState.running) return;
+  simState.running = true;
+  document.getElementById('run-btn').disabled = true;
+  document.getElementById('run-btn').textContent = '⏸ Running...';
+  stepSim();
+}
+
+function stepSim() {
+  simState.turn++;
+  if (simState.turn >= SCRIPT.length) {
+    simState.running = false;
+    document.getElementById('run-btn').textContent = '✓ Complete';
+    return;
+  }
+  const frame = SCRIPT[simState.turn];
+  const prev  = simState.turn > 0 ? SCRIPT[simState.turn - 1] : null;
+  applyFrame(frame, prev);
+
+  if (simState.turn < SCRIPT.length - 1) {
+    simState.timer = setTimeout(stepSim, 2800);
+  } else {
+    simState.running = false;
+    document.getElementById('run-btn').textContent = '✓ Complete';
+  }
+}
+
+function resetSim() {
+  clearTimeout(simState.timer);
+  simState = { turn: -1, running: false, timer: null };
+  // Reset route/node states
+  ROUTES.forEach(r => { routeStates[r.id] = 'open'; });
+  Object.keys(CITIES).forEach(c => { nodeStates[c] = 'normal'; });
+  activeParticles = [];
+  // Reset chart
+  chart.data.labels = ['T0'];
+  chart.data.datasets[0].data = [0];
+  chart.update();
+  // Reset UI
+  updateRewardBars({ R1:0, R2:0, R3:0, R4:0, R5:0, R7:0 });
+  updateAgentCards(
+    Object.fromEntries(AGENTS.map(a => [a.id, { action:'WAIT', r:0, reasoning:'Ready.' }])),
+    false
+  );
+  document.getElementById('otif-badge').textContent = 'OTIF — %';
+  document.getElementById('status-text').textContent = 'READY';
+  document.getElementById('event-log').innerHTML = '';
+  document.getElementById('stat-deliveries').textContent = '0/5';
+  document.getElementById('stat-blocked').textContent = '0';
+  document.getElementById('stat-coalition').textContent = '—';
+  document.getElementById('run-btn').disabled = false;
+  document.getElementById('run-btn').textContent = '▶ Run Simulation';
+  updateTimeline(0);
+  document.querySelectorAll('.step-dot').forEach(d => d.className = 'step-dot');
+}
+
+// ════════════════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════════════════
+
+window.addEventListener('load', () => {
+  resizeMap();
+  window.addEventListener('resize', () => { resizeMap(); });
+  initAgentCards();
+  initRewardBars();
+  initChart();
+  initTimeline();
+  drawMapFrame(0);
+  // Apply turn 0 immediately
+  applyFrame(SCRIPT[0], null);
+  simState.turn = 0;
+});
+</script>
+</body>
+</html>
