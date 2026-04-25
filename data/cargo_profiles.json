@@ -1,0 +1,87 @@
+{
+  "_comment": "Cargo distributions based on Indian Road Freight statistics (MoRTH 2022-23) and EXIM trade flow data. Value in USD, weight in tons.",
+
+  "type_weights": {
+    "_comment": "Probability of each cargo type spawning. Road freight: bulk dominates by volume, pharma/cold chain by value.",
+    "bulk":       0.40,
+    "standard":   0.30,
+    "cold_chain": 0.20,
+    "urgent":     0.10
+  },
+
+  "value_range_usd": {
+    "_comment": "Min/max monetary value per shipment by cargo type.",
+    "bulk":       [800,   8000],
+    "standard":   [2000,  18000],
+    "cold_chain": [6000,  55000],
+    "urgent":     [9000,  90000]
+  },
+
+  "weight_range_tons": {
+    "_comment": "Min/max shipment weight in tons. Bulk = heavy bulk commodity loads. Urgent = small high-value parcels.",
+    "bulk":       [12.0, 48.0],
+    "standard":   [4.0,  22.0],
+    "cold_chain": [1.0,  12.0],
+    "urgent":     [0.5,   6.0]
+  },
+
+  "priority_by_type": {
+    "_comment": "Default priority (1=low, 4=critical) per cargo type.",
+    "bulk":       1,
+    "standard":   2,
+    "cold_chain": 3,
+    "urgent":     4
+  },
+
+  "od_pairs": {
+    "_comment": "Realistic origin-destination pairs based on actual Indian trade corridors and industrial cluster locations.",
+    "bulk": [
+      {"origin": "Kolkata",   "destination": "Delhi",     "commodity": "steel/jute"},
+      {"origin": "Kolkata",   "destination": "Mumbai",    "commodity": "coal/jute"},
+      {"origin": "Ahmedabad", "destination": "Mumbai",    "commodity": "chemicals/textiles"},
+      {"origin": "Jaipur",    "destination": "Delhi",     "commodity": "marble/stone"},
+      {"origin": "Surat",     "destination": "Ahmedabad", "commodity": "textiles/diamonds"},
+      {"origin": "Hyderabad", "destination": "Kolkata",   "commodity": "cement/granite"},
+      {"origin": "Chennai",   "destination": "Kolkata",   "commodity": "iron ore"},
+      {"origin": "Delhi",     "destination": "Kolkata",   "commodity": "machinery/fertilisers"}
+    ],
+    "standard": [
+      {"origin": "Pune",      "destination": "Delhi",     "commodity": "auto parts (Pune auto hub)"},
+      {"origin": "Chennai",   "destination": "Mumbai",    "commodity": "auto parts (Chennai auto hub)"},
+      {"origin": "Delhi",     "destination": "Mumbai",    "commodity": "FMCG/electronics"},
+      {"origin": "Bangalore", "destination": "Hyderabad", "commodity": "IT equipment/electronics"},
+      {"origin": "Mumbai",    "destination": "Chennai",   "commodity": "chemicals/plastics"},
+      {"origin": "Ahmedabad", "destination": "Delhi",     "commodity": "textiles/garments"},
+      {"origin": "Surat",     "destination": "Mumbai",    "commodity": "diamonds/gems"},
+      {"origin": "Delhi",     "destination": "Bangalore", "commodity": "consumer goods"}
+    ],
+    "cold_chain": [
+      {"origin": "Hyderabad", "destination": "Mumbai",    "commodity": "pharma exports (Hyderabad pharma city)"},
+      {"origin": "Hyderabad", "destination": "Delhi",     "commodity": "bulk pharma APIs"},
+      {"origin": "Hyderabad", "destination": "Chennai",   "commodity": "vaccines/biologics"},
+      {"origin": "Bangalore", "destination": "Mumbai",    "commodity": "biotech/pharma"},
+      {"origin": "Pune",      "destination": "Delhi",     "commodity": "perishable food/dairy"},
+      {"origin": "Ahmedabad", "destination": "Mumbai",    "commodity": "processed food"},
+      {"origin": "Chennai",   "destination": "Hyderabad", "commodity": "seafood/marine products"},
+      {"origin": "Kolkata",   "destination": "Delhi",     "commodity": "fish/poultry (perishable)"}
+    ],
+    "urgent": [
+      {"origin": "Mumbai",    "destination": "Delhi",     "commodity": "medical devices/critical parts"},
+      {"origin": "Delhi",     "destination": "Mumbai",    "commodity": "defence/aerospace components"},
+      {"origin": "Bangalore", "destination": "Chennai",   "commodity": "semiconductor/electronics"},
+      {"origin": "Chennai",   "destination": "Bangalore", "commodity": "critical auto parts (JIT)"},
+      {"origin": "Hyderabad", "destination": "Bangalore", "commodity": "pharmaceutical raw materials"},
+      {"origin": "Mumbai",    "destination": "Kolkata",   "commodity": "emergency medical supplies"},
+      {"origin": "Delhi",     "destination": "Jaipur",    "commodity": "express courier/e-commerce"},
+      {"origin": "Pune",      "destination": "Hyderabad", "commodity": "critical engineering components"}
+    ]
+  },
+
+  "deadline_range_turns": {
+    "_comment": "Min/max turns to deadline. Urgent cargo must arrive faster.",
+    "bulk":       [8,  20],
+    "standard":   [6,  18],
+    "cold_chain": [4,  12],
+    "urgent":     [2,   7]
+  }
+}
