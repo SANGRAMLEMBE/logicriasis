@@ -70,6 +70,7 @@ class LogiCrisisEnv:
             priority_weights=priority_weights,
         )
         self._action_counts: dict[str, int] = {}
+        self.agent_memory: dict[str, list[str]] = {}
         self.geo_state = GeopoliticalState()
         self._live_context = None   # cached per episode, fetched once in reset()
 
@@ -84,6 +85,7 @@ class LogiCrisisEnv:
         self.world.reset(agent_ids, roles)
         self.geo_state = GeopoliticalState()
         self._action_counts = {aid: 0 for aid in agent_ids}
+        self.agent_memory = {aid: [] for aid in agent_ids}
         self._live_context = None
         self._inject_live_disruptions()
         return self._build_observations()
@@ -147,6 +149,9 @@ class LogiCrisisEnv:
 
         # --- Execute actions ---
         self._execute_actions(validated)
+
+        # --- Write memory for each agent based on what just happened ---
+        self._update_memory(validated)
 
         # --- Advance world clock ---
         self.world.advance_turn()
@@ -281,6 +286,7 @@ class LogiCrisisEnv:
                 action_history=history,
                 active_coalition_id=state.coalition_id,
                 active_contracts=state.active_contracts,
+                memory=self.agent_memory.get(agent_id, []),
                 recovering_routes=recovering,
                 geopolitical_alerts=geo_alerts,
                 live_weather=live_weather,
@@ -289,6 +295,70 @@ class LogiCrisisEnv:
                 live_commodity=live_commodity,
             )
         return obs
+
+    # ── Memory ────────────────────────────────────────────────────────────────
+
+    def _update_memory(self, actions: dict[str, AgentAction]) -> None:
+        """Write one-line outcome entries to each agent's working memory after actions execute."""
+        turn = self.world.turn
+        for agent_id, action in actions.items():
+            entries: list[str] = []
+            atype = action.action_type
+
+            if atype == ActionType.REROUTE and action.route_id:
+                route = self.world.routes.get(action.route_id)
+                if route and route.blocked:
+                    entries.append(
+                        f"Turn {turn}: reroute {action.route_id} FAILED (blocked) — do NOT retry"
+                    )
+                elif action.cargo_id and action.cargo_id in self.world.delivered_cargo:
+                    entries.append(
+                        f"Turn {turn}: {action.cargo_id} delivered via {action.route_id} ✓"
+                    )
+                else:
+                    entries.append(
+                        f"Turn {turn}: rerouted {action.cargo_id} via {action.route_id}"
+                    )
+
+            elif atype == ActionType.MAKE_BID and action.cargo_id:
+                entries.append(
+                    f"Turn {turn}: bid posted — {action.cargo_id} to {action.target_agent} "
+                    f"at ${action.bid_price}"
+                )
+
+            elif atype == ActionType.ACCEPT_BID and action.bid_id:
+                entries.append(f"Turn {turn}: accepted bid {action.bid_id} ✓")
+
+            elif atype == ActionType.REJECT_BID and action.bid_id:
+                entries.append(f"Turn {turn}: rejected bid {action.bid_id}")
+
+            elif atype == ActionType.COUNTER_PROPOSE and action.bid_id:
+                entries.append(
+                    f"Turn {turn}: counter-proposed on {action.bid_id} at ${action.bid_price}"
+                )
+
+            elif atype == ActionType.PROPOSE_COALITION:
+                entries.append(
+                    f"Turn {turn}: proposed coalition with {action.coalition_members}"
+                )
+
+            elif atype == ActionType.DEPLOY_COLD_STORAGE and action.cargo_id:
+                entries.append(
+                    f"Turn {turn}: cold storage deployed for {action.cargo_id} ✓"
+                )
+
+            elif atype == ActionType.PRIORITIZE_CARGO and action.cargo_id:
+                entries.append(
+                    f"Turn {turn}: {action.cargo_id} prioritized — deadline extended"
+                )
+
+            elif atype == ActionType.WAIT:
+                entries.append(f"Turn {turn}: waited — act next turn, do not loop")
+
+            if entries:
+                mem = self.agent_memory.setdefault(agent_id, [])
+                mem.extend(entries)
+                self.agent_memory[agent_id] = mem[-5:]  # keep last 5 to avoid prompt bloat
 
     def _build_live_signals(
         self, role: str, region: str

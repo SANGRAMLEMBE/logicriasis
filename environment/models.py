@@ -148,6 +148,9 @@ class AgentObservation:
     active_coalition_id: Optional[str] = None
     active_contracts: list[dict] = field(default_factory=list)
 
+    # Per-agent working memory (last 5 action outcomes this episode)
+    memory: list[str] = field(default_factory=list)
+
     # Recovery & geopolitical context
     recovering_routes: list[str] = field(default_factory=list)
     geopolitical_alerts: list[str] = field(default_factory=list)
@@ -175,6 +178,8 @@ class AgentObservation:
             f"Active coalition: {self.active_coalition_id}",
             f"Active contracts: {self.active_contracts}",
         ]
+        if self.memory:
+            lines.append(f"MY MEMORY (past actions this episode): {self.memory}")
         # Append live API signals only when they carry real data
         if self.live_weather:
             lines.append(f"LIVE WEATHER (real-time): {self.live_weather}")

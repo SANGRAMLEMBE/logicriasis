@@ -142,6 +142,16 @@ Think 2 turns ahead: if Delhi-Jaipur blocked next turn, alert Carriers NOW.
 """
 
 
+# ── Memory rule (injected into every agent prompt) ───────────────────────────
+
+_MEMORY_RULE = """MEMORY RULE: Your observation includes a MY MEMORY section with past action outcomes.
+- Route marked FAILED (blocked) → do NOT retry it, pick an alternate
+- Cargo marked delivered ✓ → remove from planning, do not act on it again
+- Bid marked REJECTED → adjust price or target a different agent
+- If you WAITED last turn → act this turn, do not loop
+Use memory to avoid repeating failed actions and build on what worked."""
+
+
 # ── System prompt builder ─────────────────────────────────────────────────────
 
 def _build_system_prompt(role: str) -> str:
@@ -176,6 +186,7 @@ DECISION FRAMEWORK:
 4. Choose the action that maximizes your role-specific KPIs
 5. Always include clear reasoning so other agents can coordinate with you
 
+{_MEMORY_RULE}
 {examples}
 {_build_action_schema(allowed)}"""
 
