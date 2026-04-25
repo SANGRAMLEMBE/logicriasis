@@ -17,6 +17,7 @@ from environment.schemas import (
     StepResponseSchema, ResetResponseSchema, TaskSchema, GraderResultSchema,
 )
 from environment.tasks import TASKS, ALL_TASK_IDS, get_task
+from environment.live_data import LiveDataConnector
 
 app = FastAPI(
     title="LogiCrisis OpenEnv",
@@ -281,6 +282,17 @@ def validate():
         "checks": checks,
         "spec_version": "openenv@1.0.0",
     }
+
+
+@app.get("/live_data", summary="Fetch live disruption signals from weather, currency, and geopolitical sources")
+def live_data():
+    """
+    Polls OpenWeatherMap, ExchangeRate-API, and GDELT for real-world disruption signals.
+    Falls back to synthetic data automatically if API keys are missing or calls fail.
+    Set OPENWEATHERMAP_API_KEY env var to enable live weather data.
+    """
+    connector = LiveDataConnector()
+    return connector.get_all_disruptions()
 
 
 @app.get("/action_types", summary="All valid action_type values")
