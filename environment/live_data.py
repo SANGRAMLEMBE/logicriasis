@@ -286,7 +286,7 @@ class OpenWeatherMapConnector:
     _URL = "https://api.openweathermap.org/data/2.5/weather"
 
     def __init__(self) -> None:
-        self.api_key = os.environ.get("OPENWEATHERMAP_API_KEY", "")
+        self.api_key = os.environ.get("scaler_weather", "")
 
     def is_available(self) -> bool:
         return bool(self.api_key) and _REQUESTS_OK
