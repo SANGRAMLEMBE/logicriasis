@@ -27,9 +27,9 @@ import os, sys, subprocess, time
 # ── 1. Install dependencies ───────────────────────────────────────────────────
 
 def install():
-    # Skip if Docker pre-installed everything already
+    # Skip if Docker pre-installed everything already (check torch only — avoids triggering heavy imports)
     try:
-        import unsloth, trl, datasets, peft, bitsandbytes  # noqa: F401
+        import torch  # noqa: F401
         print("[SETUP] Dependencies already installed.")
         return
     except ImportError:
