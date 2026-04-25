@@ -1,21 +1,28 @@
-FROM python:3.10-slim
+FROM nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04
 
 WORKDIR /app
 
-# System deps
-RUN apt-get update && apt-get install -y git curl && rm -rf /var/lib/apt/lists/*
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PATH="/usr/local/cuda/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64:/usr/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH}"
+
+# System deps: Python 3.10, gcc, git
+RUN apt-get update && apt-get install -y \
+    python3.10 python3.10-dev python3-pip \
+    git curl build-essential \
+    && ln -sf /usr/bin/python3.10 /usr/bin/python3 \
+    && ln -sf /usr/bin/python3.10 /usr/bin/python \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy repo
 COPY . /app
 
-# Install Python deps
-RUN pip install --no-cache-dir \
-    "torch==2.6.0" torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu124 && \
+# Install Python deps — torch auto-picks the right CUDA build from PyPI
+RUN pip install --no-cache-dir torch torchvision torchaudio && \
     pip install --no-cache-dir \
     "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git" \
-    "trl>=0.9.0" datasets accelerate peft \
-    matplotlib requests fastapi uvicorn gradio huggingface_hub && \
-    pip install --no-cache-dir "torchao<0.8.0"
+    "trl>=0.9.0" datasets accelerate peft bitsandbytes \
+    matplotlib requests fastapi uvicorn gradio huggingface_hub
 
 # Run training when container starts
 CMD ["python", "train_on_hf.py"]
