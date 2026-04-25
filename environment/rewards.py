@@ -144,6 +144,23 @@ def r6_anti_cheat(world: "WorldState", agent_id: str,
     return 0.0
 
 
+# ── R7 — Carbon footprint (reroute penalty) ───────────────────────────────────
+
+def r7_carbon_footprint(world: "WorldState", agent_id: str,
+                         action: "AgentAction") -> float:
+    from .models import ActionType
+    if action.action_type != ActionType.REROUTE:
+        return 0.0
+
+    route = world.routes.get(action.route_id) if action.route_id else None
+    cargo = world.cargo_queue.get(action.cargo_id) if action.cargo_id else None
+
+    if route is None or cargo is None:
+        return 0.0
+
+    return round(-(route.distance_km * cargo.weight_tons * 0.001), 3)
+
+
 # ── Composite reward ──────────────────────────────────────────────────────────
 
 def compute_rewards(
@@ -151,7 +168,7 @@ def compute_rewards(
     actions: dict[str, "AgentAction"],
 ) -> dict[str, dict[str, float]]:
     """
-    Returns per-agent reward breakdown: {agent_id: {R1..R6, total, shared}}.
+    Returns per-agent reward breakdown: {agent_id: {R1..R7, total, shared}}.
     """
     system_otif = world.otif_percent()
     severity_mult = world.severity_multiplier()
@@ -170,8 +187,9 @@ def compute_rewards(
         r4 = r4_cold_chain(world, agent_id)
         r5 = r5_resource_efficiency(world, agent_id)
         r6 = r6_anti_cheat(world, agent_id, action)
+        r7 = r7_carbon_footprint(world, agent_id, action)
 
-        total = r1 + r2 + r3 + r4 + r5 + r6 + shared_bonus
+        total = r1 + r2 + r3 + r4 + r5 + r6 + r7 + shared_bonus
 
         results[agent_id] = {
             "R1_delivery": r1,
@@ -180,6 +198,7 @@ def compute_rewards(
             "R4_cold_chain": r4,
             "R5_efficiency": r5,
             "R6_anti_cheat": r6,
+            "R7_carbon": r7,
             "shared_bonus": round(shared_bonus, 3),
             "total": round(total, 3),
         }

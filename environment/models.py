@@ -42,6 +42,11 @@ class ActionType(str, Enum):
     ASSIGN_COALITION_ROLE = "assign_coalition_role"
     # No-op
     WAIT = "wait"
+    # Geopolitical
+    ISSUE_GEOPOLITICAL_ALERT = "issue_geopolitical_alert"
+    NEGOTIATE_TRADE_CORRIDOR = "negotiate_trade_corridor"
+    APPLY_SANCTIONS = "apply_sanctions"
+    REQUEST_DIPLOMATIC_BYPASS = "request_diplomatic_bypass"
 
 
 class CargoType(str, Enum):
@@ -141,6 +146,10 @@ class AgentObservation:
     # Active contracts / coalitions
     active_coalition_id: Optional[str] = None
     active_contracts: list[dict] = field(default_factory=list)
+
+    # Recovery & geopolitical context
+    recovering_routes: list[str] = field(default_factory=list)
+    geopolitical_alerts: list[str] = field(default_factory=list)
 
     def to_prompt_text(self) -> str:
         lines = [

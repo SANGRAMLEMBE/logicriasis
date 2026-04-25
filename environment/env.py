@@ -13,6 +13,7 @@ from .models import (
 )
 from .world import WorldState, Coalition, Bid
 from .rewards import compute_rewards
+from .geopolitical import GeopoliticalState
 
 # Default agent roster (matches 5-agent design in blueprint)
 DEFAULT_AGENTS = [
@@ -68,6 +69,7 @@ class LogiCrisisEnv:
             priority_weights=priority_weights,
         )
         self._action_counts: dict[str, int] = {}
+        self.geo_state = GeopoliticalState()
 
     def _n_agents(self) -> int:
         return {1: 2, 2: 3, 3: 5}.get(self.curriculum_level, 2)
@@ -78,6 +80,7 @@ class LogiCrisisEnv:
         agent_ids = [aid for aid, _ in self.roster]
         roles = [role for _, role in self.roster]
         self.world.reset(agent_ids, roles)
+        self.geo_state = GeopoliticalState()
         self._action_counts = {aid: 0 for aid in agent_ids}
         return self._build_observations()
 
@@ -105,6 +108,7 @@ class LogiCrisisEnv:
 
         # --- Advance world clock ---
         self.world.advance_turn()
+        self.geo_state.tick()
 
         # --- Compute rewards ---
         reward_breakdown = compute_rewards(self.world, validated)
@@ -211,6 +215,9 @@ class LogiCrisisEnv:
             ]
             history = agent_events[-3:]
 
+            recovering = self.world.get_recovering_routes()
+            geo_alerts = self.geo_state.alerts_for_region(state.region)
+
             obs[agent_id] = AgentObservation(
                 agent_id=agent_id,
                 role=state.role,
@@ -228,6 +235,8 @@ class LogiCrisisEnv:
                 action_history=history,
                 active_coalition_id=state.coalition_id,
                 active_contracts=state.active_contracts,
+                recovering_routes=recovering,
+                geopolitical_alerts=geo_alerts,
             )
         return obs
 
