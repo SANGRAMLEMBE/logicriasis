@@ -145,6 +145,7 @@ class WorldState:
         self.delivered_cargo: list[str] = []
         self.failed_cargo: list[str] = []
         self.audit_log: list[dict] = []
+        self._route_heal_at: dict[str, int] = {}   # route_id -> turn when guaranteed heal fires
 
     # ── Initialisation ────────────────────────────────────────────────────────
 
@@ -160,6 +161,7 @@ class WorldState:
         self.failed_cargo = []
         self.audit_log = []
 
+        self._route_heal_at = {}
         self._assign_agents(agent_ids, roles)
         self._generate_cargo()
         self._inject_disruptions()
@@ -239,6 +241,7 @@ class WorldState:
             )
             for rid in routes_to_block:
                 self.routes[rid].blocked = True
+                self._route_heal_at[rid] = self.turn + self.rng.randint(3, 8)
 
             self.disruptions.append(Disruption(
                 disruption_type=dtype,
@@ -280,6 +283,19 @@ class WorldState:
         # Tick disruptions
         for d in self.disruptions:
             d.turns_remaining -= 1
+        # Stochastic route recovery
+        recovered = []
+        for rid, heal_at in list(self._route_heal_at.items()):
+            if not self.routes[rid].blocked:
+                recovered.append(rid)
+                continue
+            if self.turn >= heal_at or self.rng.random() < 0.15:
+                self.routes[rid].blocked = False
+                recovered.append(rid)
+                self.log({"type": "route_recovered", "route_id": rid,
+                          "early": self.turn < heal_at})
+        for rid in recovered:
+            del self._route_heal_at[rid]
         # Expire overdue cold-chain cargo (spoilage)
         for cargo in self.cargo_queue.values():
             if cargo.temp_sensitive and not cargo.delivered:
