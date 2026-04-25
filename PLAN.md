@@ -22,12 +22,12 @@ REAL-WORLD INPUTS
          ↓
   6 AGENTS
     Carrier | Warehouse | Customs Broker | Insurer | Shipper
-    + GeopoliticalAnalyst (NEW)
+    + GeopoliticalAnalyst
          ↓
   7 Reward Signals
     R1 Delivery | R2 Coalition | R3 Negotiation
     R4 Cold Chain | R5 Efficiency | R6 Anti-Cheat
-    R7 Carbon Footprint (NEW)
+    R7 Carbon Footprint
          ↓
   GRPO Training (Unsloth 4-bit QLoRA + TRL)
     → loss_curve.png + reward_curve.png committed to repo
@@ -39,10 +39,13 @@ REAL-WORLD INPUTS
 
 | Person | Branch | Files | Status |
 |---|---|---|---|
-| **Sangram** | main | README, inference.py, HF Space | In progress |
-| **Teammate 1 (Soham)** | training-pipeline | training/train.py, Colab notebook | Colab running |
-| **Teammate 2** | new-features | rewards.py, world.py, models.py, geopolitical.py, env.py | Done (env.py pending) |
-| **Teammate 3** | apis-and-prompts | live_data.py, agents/prompts.py | Not started |
+| **Sangram** | main | README, inference.py, HF Space, PLAN.md | Done |
+| **Soham (T1)** | new-features (merged PR#2) | rewards.py (R7), world.py (recovery), models.py (geo), env.py | MERGED |
+| **Soham (T2)** | apis-and-prompts (merged PR#3) | live_data.py, agents/prompts.py (task examples), env.py (geo wired) | MERGED |
+| **All** | main | Colab training → PNG plots | PENDING |
+
+> PR#2 (new-features) merged: R7 carbon, stochastic recovery, geo models, GeopoliticalState wired into env
+> PR#3 (apis-and-prompts): live_data.py connectors, GDELT/OpenWeather/ExchangeRate, prompt task examples
 
 ---
 
@@ -67,28 +70,31 @@ REAL-WORLD INPUTS
 
 ## What Is Done
 
-- [x] 9-task environment (Tasks 1–9)
+- [x] 9-task environment (Tasks 1–9), reset/step/state/grade OpenEnv compliant
 - [x] 6 agent roles (GeopoliticalAnalyst added to models.py)
-- [x] 17 action types (4 geopolitical added)
+- [x] 17 action types (4 geopolitical added: issue_geopolitical_alert, negotiate_trade_corridor, apply_sanctions, request_diplomatic_bypass)
 - [x] 7 reward signals (R7 carbon footprint in rewards.py)
-- [x] Stochastic route recovery (world.py)
-- [x] geopolitical.py (GeopoliticalEvent, GeopoliticalState)
-- [x] training/train.py (save_training_curves with matplotlib Agg)
-- [x] Colab notebook (USE_GITHUB=True, 14 cells, 512-prompt curriculum)
+- [x] Stochastic route recovery (world.py — routes heal in 3-8 turns, 15% early recovery)
+- [x] environment/geopolitical.py (GeopoliticalEvent, GeopoliticalState with tick/alerts)
+- [x] environment/live_data.py (OpenWeatherMap, ExchangeRate-API, GDELT connectors)
+- [x] environment/env.py (GeopoliticalState wired into observations + live API disruptions injected on reset)
+- [x] agents/prompts.py (task-specific few-shot examples for earthquake_relief + capacity_crunch)
+- [x] training/train.py (save_training_curves with matplotlib Agg, 3 epochs)
+- [x] Colab notebook (USE_GITHUB=True, 14 cells, 512-prompt curriculum, GitHub auto-commit of PNGs)
 - [x] assets/ folder (.gitkeep)
-- [x] README.md (submission-ready)
-- [x] GitHub pushed
+- [x] README.md (submission-ready with HF Space + Colab badges)
+- [x] GitHub remote main: all PRs merged (PR#2 new-features + PR#3 apis-and-prompts)
 - [x] HF Space pushed (WIZARDIAN/logicriasis)
+- [x] PLAN.md rebased on top of all teammate commits
 
 ## What Is Pending
 
-- [ ] Colab training → loss_curve.png + reward_curve.png + before_after.png
-- [ ] live_data.py (Teammate 3)
-- [ ] agents/prompts.py improvements (Teammate 3)
-- [ ] env.py: wire geo_state into observations (Teammate 2)
-- [ ] README PNG plots embedded (after training)
+- [ ] Run inference.py end-to-end → confirm 9/9 tasks still pass with merged code
+- [ ] Colab GRPO training run → generates loss_curve.png + reward_curve.png + before_after.png
+- [ ] PNG plots committed to assets/ and embedded in README
 - [ ] HF Space verified public from logged-out browser
-- [ ] Final: python inference.py → 9/9 tasks
+- [ ] Push local colab notebook improvements + assets/ to GitHub
+- [ ] Push updated repo to HF Space (git push hf main)
 
 ---
 
@@ -100,17 +106,28 @@ REAL-WORLD INPUTS
 - [ ] loss_curve.png committed to repo
 - [ ] reward_curve.png committed to repo
 - [x] Colab notebook runnable end-to-end
-- [ ] README linking Space + notebook + plots
+- [ ] README PNG plots embedded (after training)
+- [ ] Final score: capacity_crunch PASS (requires GRPO training)
 
 ---
 
-## Merge Order
+## Git Workflow Summary
 
 ```
-T2 (new-features) → merge first (models.py changes needed by others)
-T3 (apis-and-prompts) → merge second
-T1 (training-pipeline) → merge after training finishes
-Sangram → final push to both origin + hf
+All teammate branches merged into origin/main via PRs:
+  PR#2: new-features   → rewards R7, world stochastic recovery, models geo, env.py
+  PR#3: apis-and-prompts → live_data.py, prompts.py task examples, env.py live API inject
+
+Local state (as of 2026-04-25):
+  main is 1 commit ahead of origin/main (PLAN.md update — needs push)
+  Modified: logicriasis_colab_training.ipynb (our 14-cell improved version)
+  Untracked: assets/ (.gitkeep)
+
+Next push:
+  git add logicriasis_colab_training.ipynb assets/
+  git commit -m "feat: updated colab notebook and assets folder"
+  git push origin main
+  git push hf main
 ```
 
 ---
