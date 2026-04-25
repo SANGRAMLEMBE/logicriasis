@@ -168,7 +168,7 @@ t0 = time.time()
 model, tokenizer = FastLanguageModel.from_pretrained(
     model_name=BASE_MODEL,
     max_seq_length=MAX_SEQ_LEN,
-    dtype=torch.bfloat16 if USE_BF16 else None,
+    dtype=None,
     load_in_4bit=LOAD_IN_4BIT,
 )
 model = FastLanguageModel.get_peft_model(
