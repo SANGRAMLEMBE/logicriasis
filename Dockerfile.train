@@ -14,10 +14,11 @@ RUN apt-get update && apt-get install -y \
     && pip3 install --upgrade pip \
     && rm -rf /var/lib/apt/lists/*
 
-# Layer 1: PyTorch — pinned together so binary ops (torchvision::nms) match
-RUN pip3 install --no-cache-dir \
-    torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 \
-    --index-url https://download.pytorch.org/whl/cu124
+# Layer 1: PyTorch 2.7 nightly — required for torch.utils._pytree.register_constant
+# (torchao>=0.13.0, which unsloth-zoo 2026.4+ needs, calls this function)
+RUN pip3 install --no-cache-dir --pre \
+    torch torchvision torchaudio \
+    --extra-index-url https://download.pytorch.org/whl/nightly/cu124
 
 # Layer 2: Unsloth + training stack
 RUN pip3 install --no-cache-dir \
