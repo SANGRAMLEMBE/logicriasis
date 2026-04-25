@@ -1,16 +1,15 @@
 """
 Live data connectors for LogiCrisis.
-Sources:
-  1. OpenWeatherMap  — weather disruptions      (1000 free calls/day; set OPENWEATHERMAP_API_KEY)
-  2. ExchangeRate-API — tariff/currency shocks  (free, no key needed)
-  3. GDELT 2.0 Doc    — geopolitical conflicts  (free, no key needed)
+  - OpenWeatherMap  (free, set OPENWEATHERMAP_API_KEY) → list[Disruption]
+  - ExchangeRate-API (free, no key: api.exchangerate-api.com) → GeopoliticalEvent | None
+  - GDELT 2.0 Doc   (free, no key: api.gdeltproject.org) → list[str] (city names)
 
-Every connector returns the same disruption dict format and falls back to
-synthetic data on any error so the simulation never crashes without live keys.
+All connectors wrapped in try/except — any failure returns empty list / None silently.
 """
 from __future__ import annotations
-import os, random, datetime
-from typing import Any
+import os
+from dataclasses import dataclass, field
+from typing import Optional
 
 try:
     import requests
@@ -18,22 +17,15 @@ try:
 except ImportError:
     _REQUESTS_OK = False
 
+from .models import Disruption, DisruptionType
+
 # ── City catalogue (matches world.py topology) ────────────────────────────────
 
-_CITIES: dict[str, dict[str, float]] = {
-    "Mumbai":    {"lat": 19.08, "lon": 72.88},
-    "Delhi":     {"lat": 28.70, "lon": 77.10},
-    "Kolkata":   {"lat": 22.57, "lon": 88.36},
-    "Chennai":   {"lat": 13.08, "lon": 80.27},
-    "Bangalore": {"lat": 12.97, "lon": 77.59},
-    "Hyderabad": {"lat": 17.38, "lon": 78.49},
-    "Pune":      {"lat": 18.52, "lon": 73.86},
-    "Ahmedabad": {"lat": 23.03, "lon": 72.59},
-    "Jaipur":    {"lat": 26.91, "lon": 75.79},
-    "Surat":     {"lat": 21.17, "lon": 72.83},
-}
+_CITIES: list[str] = [
+    "Mumbai", "Delhi", "Kolkata", "Chennai", "Bangalore",
+    "Hyderabad", "Pune", "Ahmedabad", "Jaipur", "Surat",
+]
 
-# City → route IDs that pass through it (format matches world.py "CityA-CityB")
 _CITY_ROUTES: dict[str, list[str]] = {
     "Mumbai":    ["Mumbai-Pune", "Mumbai-Ahmedabad", "Mumbai-Surat", "Delhi-Mumbai", "Chennai-Mumbai"],
     "Delhi":     ["Delhi-Jaipur", "Delhi-Ahmedabad", "Delhi-Kolkata", "Delhi-Mumbai"],
@@ -48,183 +40,139 @@ _CITY_ROUTES: dict[str, list[str]] = {
 }
 
 
-def _utc_now() -> str:
-    return datetime.datetime.utcnow().isoformat() + "Z"
+# ── GeopoliticalEvent (returned by ExchangeRateConnector) ────────────────────
+
+@dataclass
+class GeopoliticalEvent:
+    event_type: str               # e.g. "tariff_shock"
+    severity: int                 # 1–5
+    affected_cities: list[str]    # simulation city names impacted
+    description: str
+    currency_pair: str = ""       # e.g. "USD/INR"
+    swing_pct: float = 0.0        # percentage change from baseline
 
 
-# ── 1. OpenWeatherMap ─────────────────────────────────────────────────────────
+# ── 1. OpenWeatherMap → list[Disruption] ─────────────────────────────────────
 
 class WeatherConnector:
-    """Polls OpenWeatherMap for each simulation city; maps severe weather to disruptions."""
+    """Polls OpenWeatherMap for each simulation city; maps storms/cyclones to Disruption objects."""
 
-    _OWM_URL = "https://api.openweathermap.org/data/2.5/weather"
+    _URL = "https://api.openweathermap.org/data/2.5/weather"
 
     def __init__(self) -> None:
         self.api_key = os.environ.get("OPENWEATHERMAP_API_KEY", "")
 
-    def fetch(self) -> list[dict[str, Any]]:
+    def fetch(self) -> list[Disruption]:
         if not self.api_key or not _REQUESTS_OK:
-            return self._synthetic()
-        disruptions: list[dict] = []
+            return []
+        disruptions: list[Disruption] = []
         for city in _CITIES:
             try:
                 resp = requests.get(
-                    self._OWM_URL,
+                    self._URL,
                     params={"q": f"{city},IN", "appid": self.api_key, "units": "metric"},
                     timeout=5,
                 )
                 resp.raise_for_status()
-                event = self._parse(city, resp.json())
-                if event:
-                    disruptions.append(event)
+                d = self._parse(city, resp.json())
+                if d:
+                    disruptions.append(d)
             except Exception:
-                pass  # skip individual city failures; try next
-        return disruptions if disruptions else self._synthetic()
+                pass
+        return disruptions
 
-    def _parse(self, city: str, data: dict) -> dict | None:
+    def _parse(self, city: str, data: dict) -> Optional[Disruption]:
         w = (data.get("weather") or [{}])[0]
-        weather_id  = w.get("id", 800)
-        description = w.get("description", "clear sky")
+        weather_id = w.get("id", 800)
 
-        dtype: str | None = None
+        dtype: Optional[DisruptionType] = None
         severity = 0
 
-        if 200 <= weather_id <= 232:    # thunderstorm
-            dtype, severity = "flood", 4 if weather_id <= 202 else 3
-        elif 300 <= weather_id <= 321:  # drizzle
-            dtype, severity = "road_closure", 1
-        elif 500 <= weather_id <= 504:  # rain
-            dtype = "flood"
-            severity = 3 if weather_id >= 502 else 2
-        elif 511 <= weather_id <= 531:  # heavy / shower rain
-            dtype, severity = "flood", 3
+        if 200 <= weather_id <= 232:    # thunderstorm / cyclone
+            dtype, severity = DisruptionType.FLOOD, 4 if weather_id <= 202 else 3
+        elif 502 <= weather_id <= 531:  # heavy / violent rain
+            dtype, severity = DisruptionType.FLOOD, 3
+        elif 500 <= weather_id <= 501:  # moderate rain
+            dtype, severity = DisruptionType.FLOOD, 2
         elif weather_id == 781:         # tornado
-            dtype, severity = "road_closure", 5
-        elif 762 <= weather_id <= 780:  # volcanic ash, squall
-            dtype, severity = "road_closure", 3
-        elif 700 <= weather_id <= 761:  # fog, dust, haze
-            dtype, severity = "road_closure", 2
+            dtype, severity = DisruptionType.ROAD_CLOSURE, 5
+        elif 762 <= weather_id <= 780:  # volcanic ash / squall
+            dtype, severity = DisruptionType.ROAD_CLOSURE, 3
+        elif 700 <= weather_id <= 761:  # fog / dust / haze
+            dtype, severity = DisruptionType.ROAD_CLOSURE, 2
 
         if severity < 2 or dtype is None:
             return None
 
         routes = _CITY_ROUTES.get(city, [])
-        return {
-            "type": dtype,
-            "severity": severity,
-            "affected_nodes": [city],
-            "affected_routes": routes[:2],
-            "turns_remaining": severity,
-            "source": "openweathermap",
-            "description": f"{description.title()} in {city}",
-        }
-
-    def _synthetic(self) -> list[dict[str, Any]]:
-        return [
-            {
-                "type": "flood",
-                "severity": 3,
-                "affected_nodes": ["Mumbai", "Pune"],
-                "affected_routes": ["Mumbai-Pune"],
-                "turns_remaining": 3,
-                "source": "synthetic",
-                "description": "Heavy monsoon rain — Mumbai–Pune corridor flooded (synthetic fallback)",
-            },
-            {
-                "type": "road_closure",
-                "severity": 2,
-                "affected_nodes": ["Delhi"],
-                "affected_routes": ["Delhi-Jaipur"],
-                "turns_remaining": 2,
-                "source": "synthetic",
-                "description": "Dense fog causing road closures near Delhi (synthetic fallback)",
-            },
-        ]
+        return Disruption(
+            disruption_type=dtype,
+            severity=severity,
+            affected_nodes=[city],
+            affected_routes=routes[:2],
+            turns_remaining=severity,
+        )
 
 
-# ── 2. ExchangeRate-API ───────────────────────────────────────────────────────
+# ── 2. ExchangeRate-API → GeopoliticalEvent | None ───────────────────────────
 
 class ExchangeRateConnector:
     """
-    Tracks USD/INR via open.er-api.com (no key needed).
-    Sharp INR depreciation → tariff-pressure port_strike disruption on import hubs.
+    Fetches live USD/INR from api.exchangerate-api.com (no key needed).
+    A swing > 5% vs baseline is treated as a tariff shock GeopoliticalEvent.
     """
 
     _URL = "https://open.er-api.com/v6/latest/USD"
-    _INR_BASELINE = 83.0  # approximate long-run USD/INR midpoint
+    _INR_BASELINE = 83.0
 
-    def fetch(self) -> list[dict[str, Any]]:
+    def fetch(self) -> Optional[GeopoliticalEvent]:
         if not _REQUESTS_OK:
-            return self._synthetic()
+            return None
         try:
             resp = requests.get(self._URL, timeout=8)
             resp.raise_for_status()
-            data = resp.json()
-            inr = data.get("rates", {}).get("INR", self._INR_BASELINE)
+            inr = resp.json().get("rates", {}).get("INR", self._INR_BASELINE)
             return self._parse(inr)
         except Exception:
-            return self._synthetic()
+            return None
 
-    def _parse(self, inr_rate: float) -> list[dict[str, Any]]:
-        pct = ((inr_rate - self._INR_BASELINE) / self._INR_BASELINE) * 100
-        if pct < 2.0:
-            return []  # no meaningful shock
+    def _parse(self, inr_rate: float) -> Optional[GeopoliticalEvent]:
+        swing = ((inr_rate - self._INR_BASELINE) / self._INR_BASELINE) * 100
+        if abs(swing) <= 5.0:
+            return None
 
-        severity = 2 if pct < 5 else (3 if pct < 10 else 4)
-        return [{
-            "type": "port_strike",
-            "severity": severity,
-            "affected_nodes": ["Mumbai", "Chennai"],
-            "affected_routes": ["Mumbai-Pune", "Chennai-Bangalore"],
-            "turns_remaining": severity + 1,
-            "source": "exchangerate-api",
-            "description": (
-                f"INR at {inr_rate:.2f}/USD ({pct:+.1f}% vs baseline {self._INR_BASELINE}) — "
+        severity = 2 if abs(swing) < 8 else (3 if abs(swing) < 12 else 4)
+        return GeopoliticalEvent(
+            event_type="tariff_shock",
+            severity=severity,
+            affected_cities=["Mumbai", "Chennai"],   # major import ports
+            description=(
+                f"INR at {inr_rate:.2f}/USD ({swing:+.1f}% vs baseline) — "
                 f"import tariff pressure building on port cargo"
             ),
-            "raw": {"inr_rate": round(inr_rate, 4), "depreciation_pct": round(pct, 2)},
-        }]
-
-    def _synthetic(self) -> list[dict[str, Any]]:
-        return [{
-            "type": "port_strike",
-            "severity": 2,
-            "affected_nodes": ["Mumbai", "Chennai"],
-            "affected_routes": ["Mumbai-Pune", "Chennai-Bangalore"],
-            "turns_remaining": 3,
-            "source": "synthetic",
-            "description": "INR ~3.5% below baseline — simulated tariff pressure on imports (synthetic fallback)",
-            "raw": {"inr_rate": 86.0, "depreciation_pct": 3.6},
-        }]
+            currency_pair="USD/INR",
+            swing_pct=round(swing, 2),
+        )
 
 
-# ── 3. GDELT ──────────────────────────────────────────────────────────────────
+# ── 3. GDELT → list[str] (affected city names) ───────────────────────────────
 
 class GDELTConnector:
     """
-    Queries the GDELT 2.0 Doc API (no key needed) for India supply-chain
-    disruption signals and maps high article-volume to road_closure / port_strike.
+    Queries GDELT 2.0 Doc API for India supply-chain conflict signals.
+    Returns list of simulation city names mentioned in recent disruption articles.
     """
 
     _URL = "https://api.gdeltproject.org/api/v2/doc/doc"
 
-    # (keyword, disruption_type, affected_nodes, affected_routes)
-    _HOTSPOTS = [
-        ("delhi",     "road_closure", ["Delhi", "Jaipur"],   ["Delhi-Jaipur", "Delhi-Ahmedabad"]),
-        ("kolkata",   "port_strike",  ["Kolkata"],            ["Delhi-Kolkata", "Kolkata-Chennai"]),
-        ("mumbai",    "port_strike",  ["Mumbai"],             ["Mumbai-Pune", "Mumbai-Ahmedabad"]),
-        ("chennai",   "port_strike",  ["Chennai"],            ["Chennai-Bangalore", "Chennai-Hyderabad"]),
-        ("rajasthan", "road_closure", ["Jaipur", "Ahmedabad"],["Delhi-Jaipur", "Ahmedabad-Jaipur"]),
-    ]
-
-    def fetch(self) -> list[dict[str, Any]]:
+    def fetch(self) -> list[str]:
         if not _REQUESTS_OK:
-            return self._synthetic()
+            return []
         try:
             resp = requests.get(
                 self._URL,
                 params={
-                    "query": "India supply chain disruption conflict strike protest border",
+                    "query": "India supply chain disruption conflict strike protest port",
                     "mode": "artlist",
                     "maxrecords": "10",
                     "format": "json",
@@ -234,104 +182,66 @@ class GDELTConnector:
             resp.raise_for_status()
             return self._parse(resp.json())
         except Exception:
-            return self._synthetic()
+            return []
 
-    def _parse(self, data: dict) -> list[dict[str, Any]]:
+    def _parse(self, data: dict) -> list[str]:
         articles = data.get("articles", [])
         if not articles:
-            return self._synthetic()
-
-        count = len(articles)
-        severity = min(1 + count // 3, 4)
-        combined_text = " ".join(
-            (a.get("title", "") + " " + a.get("url", "")).lower()
+            return []
+        combined = " ".join(
+            a.get("title", "") + " " + a.get("url", "")
             for a in articles
-        )
-
-        events: list[dict] = []
-        for keyword, dtype, nodes, routes in self._HOTSPOTS:
-            if keyword in combined_text:
-                events.append({
-                    "type": dtype,
-                    "severity": severity,
-                    "affected_nodes": nodes,
-                    "affected_routes": routes,
-                    "turns_remaining": severity,
-                    "source": "gdelt",
-                    "description": (
-                        f"GDELT: {count} conflict/disruption articles mentioning "
-                        f"'{keyword}' — elevated logistics risk"
-                    ),
-                })
-
-        if not events:
-            # Generic India-wide signal with capped severity
-            events.append({
-                "type": "road_closure",
-                "severity": min(severity, 2),
-                "affected_nodes": ["Delhi"],
-                "affected_routes": ["Delhi-Jaipur"],
-                "turns_remaining": 2,
-                "source": "gdelt",
-                "description": (
-                    f"GDELT: {count} India disruption signals detected — "
-                    f"applying conservative risk to Delhi corridor"
-                ),
-            })
-        return events
-
-    def _synthetic(self) -> list[dict[str, Any]]:
-        return [
-            {
-                "type": "road_closure",
-                "severity": 2,
-                "affected_nodes": ["Delhi", "Jaipur"],
-                "affected_routes": ["Delhi-Jaipur"],
-                "turns_remaining": 3,
-                "source": "synthetic",
-                "description": "Simulated: Rajasthan border tensions — Delhi-Jaipur corridor elevated risk (synthetic fallback)",
-            },
-            {
-                "type": "port_strike",
-                "severity": 3,
-                "affected_nodes": ["Kolkata"],
-                "affected_routes": ["Delhi-Kolkata", "Kolkata-Chennai"],
-                "turns_remaining": 4,
-                "source": "synthetic",
-                "description": "Simulated: Dock-worker unrest at Kolkata port — clearance delays expected (synthetic fallback)",
-            },
-        ]
+        ).lower()
+        return [city for city in _CITIES if city.lower() in combined]
 
 
 # ── Aggregator ────────────────────────────────────────────────────────────────
 
 class LiveDataConnector:
-    """Aggregates all three live sources into a single disruption payload."""
+    """Aggregates all three live sources into a unified disruption payload."""
 
     def __init__(self) -> None:
         self.weather  = WeatherConnector()
         self.exchange = ExchangeRateConnector()
         self.gdelt    = GDELTConnector()
 
-    def get_weather_disruptions(self) -> list[dict[str, Any]]:
+    def get_weather_disruptions(self) -> list[Disruption]:
         return self.weather.fetch()
 
-    def get_exchange_shocks(self) -> list[dict[str, Any]]:
+    def get_exchange_shocks(self) -> Optional[GeopoliticalEvent]:
         return self.exchange.fetch()
 
-    def get_geopolitical_zones(self) -> list[dict[str, Any]]:
+    def get_geopolitical_zones(self) -> list[str]:
         return self.gdelt.fetch()
 
-    def get_all_disruptions(self) -> dict[str, Any]:
+    def get_all_disruptions(self) -> dict:
         weather      = self.get_weather_disruptions()
-        currency     = self.get_exchange_shocks()
-        geopolitical = self.get_geopolitical_zones()
-        all_events   = weather + currency + geopolitical
+        shock        = self.get_exchange_shocks()
+        geo_cities   = self.get_geopolitical_zones()
         return {
-            "timestamp":         _utc_now(),
-            "weather":           weather,
-            "currency":          currency,
-            "geopolitical":      geopolitical,
-            "total_disruptions": len(all_events),
-            "max_severity":      max((e["severity"] for e in all_events), default=0),
+            "weather_disruptions": [
+                {
+                    "type": d.disruption_type.value,
+                    "severity": d.severity,
+                    "affected_nodes": d.affected_nodes,
+                    "affected_routes": d.affected_routes,
+                    "turns_remaining": d.turns_remaining,
+                }
+                for d in weather
+            ],
+            "currency_shock": (
+                {
+                    "event_type": shock.event_type,
+                    "severity": shock.severity,
+                    "affected_cities": shock.affected_cities,
+                    "description": shock.description,
+                    "currency_pair": shock.currency_pair,
+                    "swing_pct": shock.swing_pct,
+                }
+                if shock else None
+            ),
+            "geopolitical_cities": geo_cities,
+            "total_weather_events": len(weather),
+            "tariff_shock_active": shock is not None,
+            "conflict_cities": geo_cities,
         }
