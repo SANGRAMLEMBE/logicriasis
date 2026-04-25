@@ -9,7 +9,7 @@ from typing import Optional
 
 from .models import (
     AgentAction, AgentObservation, AgentRole, ActionType,
-    CargoType, StepResult,
+    CargoType, Disruption, DisruptionType, StepResult,
 )
 from .world import WorldState, Coalition, Bid
 from .rewards import compute_rewards
@@ -70,7 +70,9 @@ class LogiCrisisEnv:
             priority_weights=priority_weights,
         )
         self._action_counts: dict[str, int] = {}
+        self.agent_memory: dict[str, list[str]] = {}
         self.geo_state = GeopoliticalState()
+        self._live_context = None   # cached per episode, fetched once in reset()
 
     def _n_agents(self) -> int:
         return {1: 2, 2: 3, 3: 5}.get(self.curriculum_level, 2)
@@ -83,7 +85,48 @@ class LogiCrisisEnv:
         self.world.reset(agent_ids, roles)
         self.geo_state = GeopoliticalState()
         self._action_counts = {aid: 0 for aid in agent_ids}
+        self.agent_memory = {aid: [] for aid in agent_ids}
+        self._live_context = None
+        self._inject_live_disruptions()
         return self._build_observations()
+
+    def _inject_live_disruptions(self) -> None:
+        """
+        Pull real-world signals from live APIs.
+        - Converts weather/currency/conflict signals into WorldState disruptions
+        - Caches the LiveContext so _build_observations() can pass it to agents
+        Fails silently — never blocks reset().
+        """
+        try:
+            from .live_data import LiveDataConnector
+            connector = LiveDataConnector()
+            ctx = connector.get_live_context()
+            self._live_context = ctx  # cache for observation building
+
+            # 1. Weather alerts → route disruptions
+            for alert in ctx.weather_alerts:
+                if alert.severity >= 2:
+                    d = alert.to_disruption()
+                    self.world.disruptions.append(d)
+                    for route_id in alert.disrupts_routes:
+                        route = self.world.routes.get(route_id)
+                        if route:
+                            route.blocked = True
+
+            # 2. Currency shock → port_strike disruption
+            if ctx.currency_signal and ctx.currency_signal.shock_active:
+                d = ctx.currency_signal.to_disruption()
+                if d:
+                    self.world.disruptions.append(d)
+
+            # 3. Conflict signal → road_closure disruption
+            if ctx.conflict_signal:
+                d = ctx.conflict_signal.to_disruption()
+                if d:
+                    self.world.disruptions.append(d)
+
+        except Exception:
+            pass  # never block episode start
 
     def step(
         self, actions: dict[str, AgentAction]
@@ -106,6 +149,9 @@ class LogiCrisisEnv:
 
         # --- Execute actions ---
         self._execute_actions(validated)
+
+        # --- Write memory for each agent based on what just happened ---
+        self._update_memory(validated)
 
         # --- Advance world clock ---
         self.world.advance_turn()
@@ -219,6 +265,10 @@ class LogiCrisisEnv:
             recovering = self.world.get_recovering_routes()
             geo_alerts = self.geo_state.alerts_for_region(state.region)
 
+            # Build live API signals relevant to this agent's role and region
+            live_weather, live_currency, live_conflict, live_commodity = \
+                self._build_live_signals(state.role.value, state.region)
+
             obs[agent_id] = AgentObservation(
                 agent_id=agent_id,
                 role=state.role,
@@ -229,17 +279,147 @@ class LogiCrisisEnv:
                 own_budget=state.budget,
                 own_cargo_queue=cargo_ids,
                 pending_deadlines=deadlines,
-                disrupted_routes=disrupted_routes[:10],   # cap for prompt length
+                disrupted_routes=disrupted_routes[:10],
                 disrupted_nodes=disrupted_nodes,
                 neighbor_bids=neighbor_bids,
                 coalition_proposals=coalition_proposals,
                 action_history=history,
                 active_coalition_id=state.coalition_id,
                 active_contracts=state.active_contracts,
+                memory=self.agent_memory.get(agent_id, []),
                 recovering_routes=recovering,
                 geopolitical_alerts=geo_alerts,
+                live_weather=live_weather,
+                live_currency=live_currency,
+                live_conflict=live_conflict,
+                live_commodity=live_commodity,
             )
         return obs
+
+    # ── Memory ────────────────────────────────────────────────────────────────
+
+    def _update_memory(self, actions: dict[str, AgentAction]) -> None:
+        """Write one-line outcome entries to each agent's working memory after actions execute."""
+        turn = self.world.turn
+        for agent_id, action in actions.items():
+            entries: list[str] = []
+            atype = action.action_type
+
+            if atype == ActionType.REROUTE and action.route_id:
+                route = self.world.routes.get(action.route_id)
+                if route and route.blocked:
+                    entries.append(
+                        f"Turn {turn}: reroute {action.route_id} FAILED (blocked) — do NOT retry"
+                    )
+                elif action.cargo_id and action.cargo_id in self.world.delivered_cargo:
+                    entries.append(
+                        f"Turn {turn}: {action.cargo_id} delivered via {action.route_id} ✓"
+                    )
+                else:
+                    entries.append(
+                        f"Turn {turn}: rerouted {action.cargo_id} via {action.route_id}"
+                    )
+
+            elif atype == ActionType.MAKE_BID and action.cargo_id:
+                entries.append(
+                    f"Turn {turn}: bid posted — {action.cargo_id} to {action.target_agent} "
+                    f"at ${action.bid_price}"
+                )
+
+            elif atype == ActionType.ACCEPT_BID and action.bid_id:
+                entries.append(f"Turn {turn}: accepted bid {action.bid_id} ✓")
+
+            elif atype == ActionType.REJECT_BID and action.bid_id:
+                entries.append(f"Turn {turn}: rejected bid {action.bid_id}")
+
+            elif atype == ActionType.COUNTER_PROPOSE and action.bid_id:
+                entries.append(
+                    f"Turn {turn}: counter-proposed on {action.bid_id} at ${action.bid_price}"
+                )
+
+            elif atype == ActionType.PROPOSE_COALITION:
+                entries.append(
+                    f"Turn {turn}: proposed coalition with {action.coalition_members}"
+                )
+
+            elif atype == ActionType.DEPLOY_COLD_STORAGE and action.cargo_id:
+                entries.append(
+                    f"Turn {turn}: cold storage deployed for {action.cargo_id} ✓"
+                )
+
+            elif atype == ActionType.PRIORITIZE_CARGO and action.cargo_id:
+                entries.append(
+                    f"Turn {turn}: {action.cargo_id} prioritized — deadline extended"
+                )
+
+            elif atype == ActionType.WAIT:
+                entries.append(f"Turn {turn}: waited — act next turn, do not loop")
+
+            if entries:
+                mem = self.agent_memory.setdefault(agent_id, [])
+                mem.extend(entries)
+                self.agent_memory[agent_id] = mem[-5:]  # keep last 5 to avoid prompt bloat
+
+    def _build_live_signals(
+        self, role: str, region: str
+    ) -> tuple[list[str], str, str, str]:
+        """
+        Return live API signals filtered per role and region.
+        Returns: (weather_lines, currency_str, conflict_str, commodity_str)
+        Roles that care about each signal:
+          weather  → carrier, warehouse, shipper (routing + cold storage decisions)
+          currency → customs_broker, insurer, geopolitical_analyst (bid + tariff pricing)
+          conflict → insurer, geopolitical_analyst, customs_broker (risk + alerts)
+          commodity→ carrier, insurer (fuel cost → bid pricing)
+        """
+        ctx = self._live_context
+        if ctx is None:
+            return [], "", "", ""
+
+        _WEATHER_ROLES    = {"carrier", "warehouse", "shipper"}
+        _CURRENCY_ROLES   = {"customs_broker", "insurer", "geopolitical_analyst"}
+        _CONFLICT_ROLES   = {"insurer", "geopolitical_analyst", "customs_broker"}
+        _COMMODITY_ROLES  = {"carrier", "insurer"}
+
+        # Weather: show alerts in this agent's region or adjacent regions
+        weather_lines: list[str] = []
+        if role in _WEATHER_ROLES and ctx.weather_alerts:
+            for alert in ctx.weather_alerts:
+                weather_lines.append(
+                    f"{alert.city}({alert.region}): {alert.condition} sev={alert.severity} "
+                    f"routes_at_risk={alert.disrupts_routes[:2]}"
+                )
+
+        # Currency: show if role cares and shock is active or notable
+        currency_str = ""
+        if role in _CURRENCY_ROLES and ctx.currency_signal:
+            sig = ctx.currency_signal
+            currency_str = (
+                f"{sig.pair} at {sig.rate:.2f} ({sig.swing_pct:+.1f}% vs baseline). "
+                + ("TARIFF SHOCK ACTIVE — act now." if sig.shock_active else "Stable.")
+            )
+
+        # Conflict: show if role cares and cities are affected
+        conflict_str = ""
+        if role in _CONFLICT_ROLES and ctx.conflict_signal:
+            sig = ctx.conflict_signal
+            if sig.affected_cities:
+                conflict_str = (
+                    f"[{sig.source.upper()}] Cities: {sig.affected_cities}, "
+                    f"keywords: {sig.keywords_found[:3]}, severity={sig.severity}"
+                )
+
+        # Commodity: show if role cares and signal is notable (>5% change)
+        commodity_str = ""
+        if role in _COMMODITY_ROLES and ctx.commodity_signal:
+            sig = ctx.commodity_signal
+            if abs(sig.change_pct) > 5:
+                commodity_str = (
+                    f"{sig.commodity} ${sig.price_usd:.1f}/bbl "
+                    f"({sig.change_pct:+.1f}%) — {sig.impact.replace('_', ' ')}"
+                )
+
+        return weather_lines, currency_str, conflict_str, commodity_str
 
     # ── Helper checks ─────────────────────────────────────────────────────────
 

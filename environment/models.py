@@ -148,9 +148,18 @@ class AgentObservation:
     active_coalition_id: Optional[str] = None
     active_contracts: list[dict] = field(default_factory=list)
 
+    # Per-agent working memory (last 5 action outcomes this episode)
+    memory: list[str] = field(default_factory=list)
+
     # Recovery & geopolitical context
     recovering_routes: list[str] = field(default_factory=list)
     geopolitical_alerts: list[str] = field(default_factory=list)
+
+    # Live API data — real-world signals visible to this agent
+    live_weather: list[str] = field(default_factory=list)      # e.g. ["Mumbai: Heavy Rain sev=3"]
+    live_currency: str = ""                                     # e.g. "INR at 91.2 (+9.3% shock)"
+    live_conflict: str = ""                                     # e.g. "Strike in Chennai, Kolkata"
+    live_commodity: str = ""                                    # e.g. "Crude oil +12% — fuel rising"
 
     def to_prompt_text(self) -> str:
         lines = [
@@ -161,12 +170,25 @@ class AgentObservation:
             f"Pending deadlines: {self.pending_deadlines}",
             f"Disrupted routes: {self.disrupted_routes}",
             f"Disrupted nodes: {self.disrupted_nodes}",
+            f"Recovering routes: {self.recovering_routes}",
+            f"Geopolitical alerts: {self.geopolitical_alerts}",
             f"Neighbor bids: {self.neighbor_bids}",
             f"Coalition proposals: {self.coalition_proposals}",
             f"Action history: {self.action_history}",
             f"Active coalition: {self.active_coalition_id}",
             f"Active contracts: {self.active_contracts}",
         ]
+        if self.memory:
+            lines.append(f"MY MEMORY (past actions this episode): {self.memory}")
+        # Append live API signals only when they carry real data
+        if self.live_weather:
+            lines.append(f"LIVE WEATHER (real-time): {self.live_weather}")
+        if self.live_currency:
+            lines.append(f"LIVE CURRENCY: {self.live_currency}")
+        if self.live_conflict:
+            lines.append(f"LIVE CONFLICT NEWS: {self.live_conflict}")
+        if self.live_commodity:
+            lines.append(f"LIVE COMMODITY: {self.live_commodity}")
         return "\n".join(lines)
 
 
