@@ -49,9 +49,9 @@ def install():
         [sys.executable, "-m", "pip", "install", "-q"] + pkgs,
         check=True,
     )
-    # Pin transformers <4.47 — 4.47+ hard-imports torchao which needs torch 2.7+ (not yet stable)
+    # Downgrade torchao — 0.8+ uses torch.utils._pytree.register_constant which needs torch 2.7+
     subprocess.run(
-        [sys.executable, "-m", "pip", "install", "-q", "transformers>=4.40.0,<4.47.0"],
+        [sys.executable, "-m", "pip", "install", "-q", "torchao<0.8.0"],
         check=True,
     )
     print("[SETUP] Done.")
