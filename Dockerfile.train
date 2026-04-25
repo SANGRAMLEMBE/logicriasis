@@ -1,18 +1,21 @@
-FROM python:3.10-slim
+FROM pytorch/pytorch:2.6.0-cuda12.4-cudnn9-devel
 
 WORKDIR /app
 
-# System deps
-RUN apt-get update && apt-get install -y git curl && rm -rf /var/lib/apt/lists/*
+ENV DEBIAN_FRONTEND=noninteractive
 
-# Copy repo
-COPY . /app
+RUN apt-get update && apt-get install -y \
+    git build-essential curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install Python deps
+# cu124-ampere-torch260 extra pins a torchao version that works with torch 2.6.0
+# (avoids torchao>=0.13 which needs register_constant from torch 2.7+)
 RUN pip install --no-cache-dir \
-    "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git" \
-    "trl>=0.9.0" datasets accelerate peft \
+    "unsloth[cu124-ampere-torch260] @ git+https://github.com/unslothai/unsloth.git" \
+    "trl>=0.9.0" datasets accelerate peft bitsandbytes \
     matplotlib requests fastapi uvicorn gradio huggingface_hub
 
-# Run training when container starts
+# Copy repo last — keeps pip layer cached
+COPY . /app
+
 CMD ["python", "train_on_hf.py"]

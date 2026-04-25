@@ -78,14 +78,24 @@ REAL-WORLD INPUTS
 - [x] environment/geopolitical.py (GeopoliticalEvent, GeopoliticalState with tick/alerts)
 - [x] environment/live_data.py (OpenWeatherMap, ExchangeRate-API, GDELT connectors)
 - [x] environment/env.py (GeopoliticalState wired into observations + live API disruptions injected on reset)
-- [x] agents/prompts.py (task-specific few-shot examples for earthquake_relief + capacity_crunch)
-- [x] training/train.py (save_training_curves with matplotlib Agg, 3 epochs)
-- [x] Colab notebook (USE_GITHUB=True, 14 cells, 512-prompt curriculum, GitHub auto-commit of PNGs)
+- [x] **agents/role_configs.py** (NEW — 6 specialist manager configs: action lists, reward weights, KPIs, API signals)
+- [x] **agents/prompts.py** (rebuilt — role-filtered action schemas, manager directives, role-specific few-shots)
+- [x] **training/train.py** (role-aware parser, role-weighted GRPO rewards, 6-role curriculum dataset)
+- [x] Colab notebook (14 cells, 512-prompt curriculum, role verification, qualitative reasoning step)
 - [x] assets/ folder (.gitkeep)
 - [x] README.md (submission-ready with HF Space + Colab badges)
 - [x] GitHub remote main: all PRs merged (PR#2 new-features + PR#3 apis-and-prompts)
 - [x] HF Space pushed (WIZARDIAN/logicriasis)
-- [x] PLAN.md rebased on top of all teammate commits
+
+### Deep Specialist Reward Weights (for GRPO training)
+| Agent | Primary Reward | Weight |
+|---|---|---|
+| Carrier | R1_delivery | ×2.0 |
+| Warehouse | R4_cold_chain | ×3.0 |
+| Customs Broker | R3_negotiation | ×2.5, R7_carbon ×2.0 |
+| Insurer | R3_negotiation | ×2.5, R2_coalition ×2.0 |
+| Shipper | R1_delivery | ×2.5 |
+| Geopolitical Analyst | R3_negotiation + R7_carbon | ×2.0 each |
 
 ## What Is Pending
 
