@@ -315,7 +315,7 @@ def main() -> None:
     print("LogiCrisis Baseline Summary", flush=True)
     print("=" * 60, flush=True)
     for r in results:
-        status = "✓ PASS" if r["passed"] else "✗ FAIL"
+        status = "PASS" if r["passed"] else "FAIL"
         print(
             f"  {r['task_id']:<30} score={r['score']:.4f}  "
             f"OTIF={r['otif_percent']:.1f}%  {status}",
