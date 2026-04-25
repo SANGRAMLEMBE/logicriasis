@@ -69,6 +69,12 @@ install()
 
 import torch
 
+# torchao uses register_constant (added in torch 2.5) to register enums as pytree leaves.
+# If the conda base image ships an older torch, shim it as a no-op so torchao imports cleanly.
+# This is safe for our training path — we never call torchao quantization directly.
+if not hasattr(torch.utils._pytree, "register_constant"):
+    torch.utils._pytree.register_constant = lambda cls: cls
+
 HF_TOKEN   = os.environ.get("HF_TOKEN", "")
 MODEL_REPO = os.environ.get("MODEL_REPO", "WIZARDIAN/logicriasis-adapter")
 OUTPUT_DIR = "/tmp/logicriasis_outputs"
