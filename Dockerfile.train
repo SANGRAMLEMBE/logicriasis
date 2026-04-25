@@ -10,7 +10,7 @@ COPY . /app
 
 # Install Python deps
 RUN pip install --no-cache-dir \
-    torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 && \
+    "torch==2.6.0" torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124 && \
     pip install --no-cache-dir \
     "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git" \
     "trl>=0.9.0" datasets accelerate peft \

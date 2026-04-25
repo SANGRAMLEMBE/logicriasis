@@ -29,10 +29,11 @@ import os, sys, subprocess, time
 def install():
     # torch + torchvision must be installed before unsloth (unsloth_zoo imports torchvision at module load)
     print("[SETUP] Installing dependencies...")
+    # torch 2.6+ required for torch.int1 (needed by torchao / new transformers)
     subprocess.run(
         [sys.executable, "-m", "pip", "install", "-q",
-         "torch", "torchvision", "torchaudio",
-         "--index-url", "https://download.pytorch.org/whl/cu121"],
+         "torch==2.6.0", "torchvision", "torchaudio",
+         "--index-url", "https://download.pytorch.org/whl/cu124"],
         check=True,
     )
     pkgs = [
