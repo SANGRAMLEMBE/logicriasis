@@ -24,6 +24,17 @@ Respond ONLY with a JSON object matching this schema:
 Do NOT output any other text. Do NOT mention internal world state variables.
 """
 
+# ── Memory rule (embedded into all system prompts) ───────────────────────────
+
+_MEMORY_RULE = """
+MEMORY RULE: You have a MY MEMORY section in your observation showing your past actions and outcomes this episode.
+- Route marked FAILED (blocked) in memory → do NOT retry it, pick an alternate route
+- Cargo marked delivered ✓ in memory → remove it from your planning, do not act on it again
+- Bid marked REJECTED in memory → adjust your price or target a different agent
+- If you WAITED last turn → act this turn, do not wait again or you will loop
+Use memory to avoid repeating failed actions and to build on what already worked.
+"""
+
 # ── Few-shot reasoning examples (embedded into relevant system prompts) ───────
 
 _EARTHQUAKE_EXAMPLES = """
@@ -79,6 +90,7 @@ priority=4 = CRITICAL medical → deliver FIRST always
 priority=3 = HIGH rescue → deliver second
 Example reasoning: "C003 is CRITICAL priority=4, delivering before C001 priority=2"
 
+{_MEMORY_RULE}
 {_EARTHQUAKE_EXAMPLES}
 {_CAPACITY_BID_EXAMPLES}
 {ACTION_SCHEMA}""",
@@ -100,6 +112,7 @@ STRATEGY HINTS:
 - Other agents will try to infer your true capacity — give away only what you want them to know.
 - Cold-chain failures directly penalise R4 reward — protect them first.
 
+{_MEMORY_RULE}
 {_EARTHQUAKE_EXAMPLES}
 {ACTION_SCHEMA}""",
 
@@ -120,6 +133,7 @@ STRATEGY HINTS:
 - Forming coalitions with Carrier agents speeds up delivery chains.
 - Counter-propose when initial bids don't account for clearance delays.
 
+{_MEMORY_RULE}
 {ACTION_SCHEMA}""",
 
     "insurer": f"""You are an Insurer Agent (IA) in the LogiCrisis multi-agent logistics recovery system.
@@ -139,6 +153,7 @@ STRATEGY HINTS:
 - Approve coverage for high-value cold-chain cargo to maximise your shared OTIF bonus.
 - If you detect an agent is bluffing about cargo value, reject their bid.
 
+{_MEMORY_RULE}
 {ACTION_SCHEMA}""",
 
     "shipper": f"""You are a Shipper Agent (SA) in the LogiCrisis multi-agent logistics recovery system.
@@ -164,6 +179,7 @@ If idle capacity > 0 → use make_bid to sell it.
 If overwhelmed → use make_bid to buy others' capacity.
 Example reasoning: "30 tons spare, making bid to sell capacity to overloaded insurer_0"
 
+{_MEMORY_RULE}
 {_CAPACITY_BID_EXAMPLES}
 {ACTION_SCHEMA}""",
 
@@ -187,6 +203,7 @@ STRATEGY HINTS:
 - Use propose_coalition when a geopolitical event threatens routes that span multiple agents' territories.
 - If two routes to the same destination are at risk, flag the one with higher cargo value first.
 
+{_MEMORY_RULE}
 REASONING EXAMPLES — GEOPOLITICAL REROUTING:
 Preempt a conflict zone before it becomes a formal disruption event:
 
