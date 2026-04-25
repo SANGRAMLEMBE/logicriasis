@@ -16,6 +16,7 @@ class AgentRole(str, Enum):
     CUSTOMS_BROKER = "customs_broker"
     INSURER = "insurer"
     SHIPPER = "shipper"
+    GEOPOLITICAL_ANALYST = "geopolitical_analyst"
 
 
 class DisruptionType(str, Enum):
