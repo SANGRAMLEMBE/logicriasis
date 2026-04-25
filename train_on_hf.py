@@ -27,18 +27,24 @@ import os, sys, subprocess, time
 # ── 1. Install dependencies ───────────────────────────────────────────────────
 
 def install():
-    # Skip if Docker pre-installed everything already (check torch only — avoids triggering heavy imports)
+    # torchao (pulled in by transformers) requires torch >= 2.5 for register_constant.
+    # Check version explicitly — the conda base image ships an older torch.
+    _MIN = (2, 5)
     try:
-        import torch  # noqa: F401
-        print("[SETUP] Dependencies already installed.")
-        return
+        import torch
+        ver = tuple(int(x) for x in torch.__version__.split(".")[:2])
+        if ver >= _MIN:
+            print(f"[SETUP] Dependencies already installed (torch {torch.__version__}).")
+            return
+        print(f"[SETUP] torch {torch.__version__} < 2.5 — upgrading (torchao needs >=2.5)...")
     except ImportError:
-        pass
+        print("[SETUP] Installing dependencies...")
 
-    print("[SETUP] Installing dependencies...")
+    # CUDA 12.4 wheel — matches the container's CUDA 12.4.1 runtime
     subprocess.run(
         [sys.executable, "-m", "pip", "install", "-q",
-         "torch", "torchvision", "torchaudio"],
+         "torch>=2.5.0,<2.7", "torchvision", "torchaudio",
+         "--index-url", "https://download.pytorch.org/whl/cu124"],
         check=True,
     )
     pkgs = [
