@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LogiCrisis — Multi-Agent Supply Chain Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:#060612; --s1:#0d0d1f; --s2:rgba(255,255,255,.04);
+  --border:rgba(255,255,255,.08); --border2:rgba(255,255,255,.13);
+  --cyan:#00d4ff; --green:#00ff88; --amber:#ffaa00; --red:#ff4444;
+  --indigo:#5965d3; --purple:#a855f7; --pink:#ec4899; --teal:#00e5cc;
+  --navy:#0066cc; --orange:#ff7700;
+  --text:#e2e8f0; --muted:rgba(255,255,255,.38);
+  --font:'Space Grotesk',sans-serif; --mono:'JetBrains Mono',monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--font)}
+
+/* ── Stars bg ── */
+#bg-canvas{position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.22}
+.grid{position:fixed;inset:0;background-image:linear-gradient(rgba(89,101,211,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(89,101,211,.04) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0}
+
+/* ── Layout ── */
+.app{position:relative;z-index:1;display:grid;grid-template-rows:52px 1fr 54px;height:100vh}
+
+/* ── Header ── */
+header{display:flex;align-items:center;gap:16px;padding:0 20px;border-bottom:1px solid var(--border);background:rgba(6,6,18,.85);backdrop-filter:blur(12px)}
+.logo{font-size:17px;font-weight:700;letter-spacing:.5px;color:var(--cyan);text-shadow:0 0 18px rgba(0,212,255,.5)}
+.logo span{color:var(--purple)}
+.tagline{font-size:11px;color:var(--muted);letter-spacing:.3px}
+header .sep{flex:1}
+.hbadge{font-size:10px;font-family:var(--mono);padding:3px 10px;border-radius:20px;border:1px solid;font-weight:500}
+.hbadge.live{border-color:var(--green);color:var(--green);background:rgba(0,255,136,.08);animation:pulse-live 2s infinite}
+.hbadge.task{border-color:var(--purple);color:var(--purple);background:rgba(168,85,247,.08)}
+@keyframes pulse-live{0%,100%{opacity:1}50%{opacity:.6}}
+.hbtn{font-size:11px;font-family:var(--mono);padding:5px 14px;border-radius:6px;border:1px solid var(--border2);background:rgba(255,255,255,.04);color:var(--text);cursor:pointer;transition:.15s}
+.hbtn:hover{background:rgba(255,255,255,.09);border-color:var(--cyan)}
+.hbtn.primary{border-color:var(--cyan);color:var(--cyan);background:rgba(0,212,255,.07)}
+.hbtn.primary:hover{background:rgba(0,212,255,.15)}
+.hbtn:disabled{opacity:.4;cursor:not-allowed}
+
+/* ── Main ── */
+.main{display:grid;grid-template-columns:1fr 380px;overflow:hidden}
+
+/* ── Map ── */
+.map-wrap{position:relative;overflow:hidden;border-right:1px solid var(--border)}
+#leaflet-map{width:100%;height:100%}
+
+/* Map overlays */
+.map-hud{position:absolute;top:12px;left:12px;z-index:500;display:flex;flex-direction:column;gap:8px}
+.hud-card{background:rgba(6,6,18,.88);border:1px solid var(--border2);border-radius:10px;padding:10px 14px;backdrop-filter:blur(10px);min-width:180px}
+.hud-title{font-size:9px;font-family:var(--mono);color:var(--muted);letter-spacing:.8px;margin-bottom:6px;text-transform:uppercase}
+.hud-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+.hud-label{font-size:10px;color:var(--muted)}
+.hud-val{font-size:11px;font-family:var(--mono);font-weight:600}
+.hud-val.cyan{color:var(--cyan)} .hud-val.green{color:var(--green)} .hud-val.amber{color:var(--amber)} .hud-val.red{color:var(--red)}
+
+.map-legend{position:absolute;bottom:12px;left:12px;z-index:500;background:rgba(6,6,18,.88);border:1px solid var(--border2);border-radius:10px;padding:10px 14px;backdrop-filter:blur(10px)}
+.legend-row{display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:10px;color:var(--muted)}
+.legend-line{width:26px;height:3px;border-radius:2px}
+.legend-dash{width:26px;height:2px;border-radius:2px;background:repeating-linear-gradient(90deg,var(--teal) 0 6px,transparent 6px 10px)}
+
+.turn-banner{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:600;background:rgba(6,6,18,.95);border:1px solid var(--border2);border-radius:14px;padding:16px 28px;text-align:center;backdrop-filter:blur(16px);display:none;min-width:260px}
+.banner-icon{font-size:28px;margin-bottom:6px}
+.banner-title{font-size:14px;font-weight:700;color:var(--cyan);margin-bottom:3px}
+.banner-sub{font-size:11px;color:var(--muted)}
+
+/* ── Right panel ── */
+.right{display:flex;flex-direction:column;overflow:hidden;background:var(--s1)}
+
+/* Agents */
+.agents-section{padding:10px 12px 6px;border-bottom:1px solid var(--border);flex-shrink:0}
+.section-title{font-size:9px;font-family:var(--mono);color:var(--muted);letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+.agent-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.agent-card{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:9px;padding:8px 10px;transition:.2s;position:relative;overflow:hidden}
+.agent-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:9px 9px 0 0}
+.agent-card.carrier::before{background:linear-gradient(90deg,var(--cyan),var(--indigo))}
+.agent-card.warehouse::before{background:linear-gradient(90deg,var(--purple),var(--pink))}
+.agent-card.customs::before{background:linear-gradient(90deg,var(--amber),var(--orange))}
+.agent-card.insurer::before{background:linear-gradient(90deg,var(--green),var(--teal))}
+.agent-card.shipper::before{background:linear-gradient(90deg,var(--red),var(--purple))}
+.agent-card.geo::before{background:linear-gradient(90deg,var(--teal),var(--cyan))}
+.agent-card.active{border-color:rgba(0,212,255,.3);background:rgba(0,212,255,.04)}
+.agent-card.coalition-active{border-color:rgba(168,85,247,.35);background:rgba(168,85,247,.05)}
+.a-header{display:flex;align-items:center;gap:5px;margin-bottom:5px}
+.a-icon{font-size:14px}
+.a-name{font-size:10px;font-weight:600;color:var(--text)}
+.a-role{font-size:8.5px;color:var(--muted);font-family:var(--mono)}
+.a-badge{margin-left:auto;font-size:7.5px;font-family:var(--mono);padding:1px 6px;border-radius:10px;font-weight:600}
+.a-badge.act{background:rgba(0,212,255,.15);color:var(--cyan);border:1px solid rgba(0,212,255,.3)}
+.a-badge.coal{background:rgba(168,85,247,.15);color:var(--purple);border:1px solid rgba(168,85,247,.3)}
+.a-badge.wait{background:rgba(255,255,255,.05);color:var(--muted);border:1px solid var(--border)}
+.a-action{font-size:9.5px;font-weight:600;color:var(--cyan);margin-bottom:3px;font-family:var(--mono)}
+.a-reasoning{font-size:8.5px;color:var(--muted);line-height:1.4;max-height:32px;overflow:hidden}
+.a-reward{font-size:9px;font-family:var(--mono);margin-top:4px;color:var(--green)}
+
+/* Metrics */
+.metrics-section{padding:8px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
+.metric-row{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.metric-card{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:7px 8px;text-align:center}
+.m-val{font-size:16px;font-weight:700;font-family:var(--mono)}
+.m-label{font-size:8.5px;color:var(--muted);margin-top:1px}
+
+/* Cargo table */
+.cargo-section{padding:6px 12px 4px;border-bottom:1px solid var(--border);flex-shrink:0}
+.cargo-list{display:flex;flex-direction:column;gap:3px;max-height:96px;overflow-y:auto}
+.cargo-item{display:flex;align-items:center;gap:6px;padding:3px 6px;background:rgba(255,255,255,.02);border-radius:5px;border:1px solid transparent;font-size:9px}
+.cargo-item.delivered{border-color:rgba(0,255,136,.2);background:rgba(0,255,136,.03)}
+.cargo-item.spoiled{border-color:rgba(255,68,68,.2);background:rgba(255,68,68,.03)}
+.cargo-item.in-transit{border-color:rgba(0,212,255,.2);background:rgba(0,212,255,.03)}
+.c-id{font-family:var(--mono);font-weight:600;color:var(--cyan);min-width:36px}
+.c-type{padding:1px 5px;border-radius:4px;font-size:7.5px;font-weight:600}
+.c-type.bulk{background:rgba(89,101,211,.2);color:var(--indigo)}
+.c-type.standard{background:rgba(0,212,255,.15);color:var(--cyan)}
+.c-type.cold_chain{background:rgba(168,85,247,.15);color:var(--purple)}
+.c-type.urgent{background:rgba(255,68,68,.15);color:var(--red)}
+.c-od{color:var(--muted);flex:1}
+.c-status{font-family:var(--mono);font-size:8px}
+.c-status.ok{color:var(--green)} .c-status.bad{color:var(--red)} .c-status.move{color:var(--cyan)}
+
+/* Chart + log */
+.bottom-section{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+.chart-wrap{padding:8px 12px 4px;height:110px;flex-shrink:0}
+.chart-wrap canvas{border-radius:6px}
+.event-log{flex:1;overflow-y:auto;padding:4px 12px 8px}
+.log-item{display:flex;align-items:flex-start;gap:7px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:9.5px;line-height:1.45}
+.log-icon{flex-shrink:0;width:16px;text-align:center}
+.log-text{color:var(--muted)}
+.log-text strong{color:var(--text)}
+.log-item.new{animation:log-flash .6s ease}
+@keyframes log-flash{from{background:rgba(0,212,255,.12)}to{background:transparent}}
+
+/* ── Footer ── */
+footer{display:flex;align-items:center;gap:0;padding:0 20px;border-top:1px solid var(--border);background:rgba(6,6,18,.9);backdrop-filter:blur(12px)}
+.turn-track{flex:1;display:flex;align-items:center;gap:0;height:100%}
+.turn-step{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:8.5px;cursor:pointer;padding:4px 2px;border-right:1px solid var(--border);transition:.15s;position:relative}
+.turn-step:last-child{border-right:none}
+.turn-step.done{background:rgba(0,255,136,.05)}
+.turn-step.active{background:rgba(0,212,255,.08)}
+.turn-step .t-label{font-family:var(--mono);font-weight:600;color:var(--muted)}
+.turn-step.done .t-label{color:var(--green)}
+.turn-step.active .t-label{color:var(--cyan)}
+.turn-step .t-name{font-size:7.5px;color:var(--muted);margin-top:1px}
+.turn-step .t-dot{width:6px;height:6px;border-radius:50%;background:var(--border2);margin-bottom:3px;transition:.3s}
+.turn-step.done .t-dot{background:var(--green);box-shadow:0 0 6px var(--green)}
+.turn-step.active .t-dot{background:var(--cyan);box-shadow:0 0 8px var(--cyan);animation:dot-pulse 1s infinite}
+@keyframes dot-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.4)}}
+.footer-controls{display:flex;align-items:center;gap:8px;padding-left:16px}
+
+/* City marker + truck + ship custom icons */
+.city-dot{width:10px;height:10px;border-radius:50%;background:var(--cyan);border:2px solid rgba(0,212,255,.5);box-shadow:0 0 8px rgba(0,212,255,.6)}
+.city-dot.port{width:13px;height:13px;background:var(--teal);border-color:var(--teal);box-shadow:0 0 12px rgba(0,229,204,.7)}
+.city-dot.disrupted{background:var(--red);border-color:var(--red);box-shadow:0 0 10px rgba(255,68,68,.7);animation:dis-pulse 1s infinite}
+.city-dot.recovering{background:var(--amber);border-color:var(--amber);box-shadow:0 0 8px rgba(255,170,0,.6)}
+@keyframes dis-pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.city-label{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:8px;font-family:var(--mono);color:rgba(255,255,255,.75);white-space:nowrap;pointer-events:none;text-shadow:0 1px 3px #000}
+.city-wrap{position:relative;display:flex;align-items:center;justify-content:center}
+
+.truck-wrap{position:relative;display:flex;align-items:center;justify-content:center;width:36px;height:36px}
+.truck-pulse{position:absolute;width:36px;height:36px;border-radius:50%;border:2px solid var(--cyan);animation:t-pulse 1.2s infinite;opacity:.6}
+@keyframes t-pulse{0%{transform:scale(.8);opacity:.8}100%{transform:scale(1.5);opacity:0}}
+.truck-body{font-size:18px;line-height:1;position:relative;z-index:2;transition:transform .1s}
+
+.ship-wrap{position:relative;display:flex;align-items:center;justify-content:center;width:40px;height:40px}
+.ship-pulse{position:absolute;width:40px;height:40px;border-radius:50%;border:2px solid var(--teal);animation:s-pulse 1.5s infinite;opacity:.5}
+@keyframes s-pulse{0%{transform:scale(.8);opacity:.7}100%{transform:scale(1.8);opacity:0}}
+.ship-body{font-size:20px;line-height:1;position:relative;z-index:2;filter:drop-shadow(0 0 10px var(--teal)) drop-shadow(0 0 20px rgba(0,229,204,.4))}
+
+.dest-pin{font-size:18px;filter:drop-shadow(0 0 6px var(--green))}
+
+/* Reward bar */
+.reward-bars{display:flex;flex-direction:column;gap:2px;margin-top:4px}
+.r-bar{display:flex;align-items:center;gap:5px;font-size:8px;font-family:var(--mono)}
+.r-bar-track{flex:1;height:3px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden}
+.r-bar-fill{height:100%;border-radius:2px;transition:width .6s}
+.r-label{color:var(--muted);min-width:28px}
+.r-val{color:var(--text);min-width:26px;text-align:right}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:4px}
+
+/* Leaflet dark overrides */
+.leaflet-container{background:#07070f}
+.leaflet-tile-pane{filter:brightness(.95) saturate(.9)}
+</style>
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+<div class="grid"></div>
+
+<div class="app">
+
+<!-- ── HEADER ── -->
+<header>
+  <div class="logo">Logi<span>Crisis</span></div>
+  <div class="tagline">Multi-Agent Logistics Recovery · Meta PyTorch OpenEnv Hackathon</div>
+  <div class="sep"></div>
+  <div class="hbadge live">● LIVE SIM</div>
+  <div class="hbadge task" id="task-badge">TASK: CASCADE FAILURE (HARD)</div>
+  <button class="hbtn primary" id="btn-play">▶ Run Simulation</button>
+  <button class="hbtn" id="btn-next" disabled>⏭ Next Turn</button>
+  <button class="hbtn" id="btn-reset">↺ Reset</button>
+</header>
+
+<!-- ── MAIN ── -->
+<div class="main">
+
+  <!-- MAP -->
+  <div class="map-wrap">
+    <div id="leaflet-map"></div>
+
+    <!-- HUD -->
+    <div class="map-hud">
+      <div class="hud-card">
+        <div class="hud-title">Active Transport</div>
+        <div class="hud-row"><span class="hud-label">🚚 Trucks</span><span class="hud-val cyan" id="hud-trucks">0</span></div>
+        <div class="hud-row"><span class="hud-label">🚢 Ships</span><span class="hud-val cyan" id="hud-ships">0</span></div>
+        <div class="hud-row"><span class="hud-label">Route</span><span class="hud-val" id="hud-route" style="font-size:9px">—</span></div>
+        <div class="hud-row"><span class="hud-label">Dist</span><span class="hud-val amber" id="hud-dist">—</span></div>
+        <div class="hud-row"><span class="hud-label">ETA</span><span class="hud-val green" id="hud-eta">—</span></div>
+      </div>
+      <div class="hud-card">
+        <div class="hud-title">Network Status</div>
+        <div class="hud-row"><span class="hud-label">Open Routes</span><span class="hud-val green" id="hud-open">24</span></div>
+        <div class="hud-row"><span class="hud-label">Blocked</span><span class="hud-val red" id="hud-blocked">0</span></div>
+        <div class="hud-row"><span class="hud-label">Recovering</span><span class="hud-val amber" id="hud-recovering">0</span></div>
+        <div class="hud-row"><span class="hud-label">Disruptions</span><span class="hud-val" id="hud-disruptions">0</span></div>
+      </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="map-legend">
+      <div class="legend-row"><div class="legend-line" style="background:var(--cyan)"></div> Road (NH open)</div>
+      <div class="legend-row"><div class="legend-line" style="background:var(--red)"></div> Route blocked</div>
+      <div class="legend-row"><div class="legend-line" style="background:var(--amber);height:2px;border-style:dashed"></div> Recovering</div>
+      <div class="legend-row"><div class="legend-dash"></div> Sea route</div>
+      <div class="legend-row"><div style="width:26px;text-align:center;font-size:12px">🚚</div> Truck (road)</div>
+      <div class="legend-row"><div style="width:26px;text-align:center;font-size:12px">🚢</div> Ship (sea)</div>
+      <div class="legend-row"><div class="city-dot port" style="margin:0 6px 0 0"></div> Port city</div>
+    </div>
+
+    <!-- Turn banner -->
+    <div class="turn-banner" id="turn-banner">
+      <div class="banner-icon" id="banner-icon">🚀</div>
+      <div class="banner-title" id="banner-title">Initialising</div>
+      <div class="banner-sub" id="banner-sub">Deploying agents across India</div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right">
+
+    <!-- Agents -->
+    <div class="agents-section">
+      <div class="section-title">6 Active Agents</div>
+      <div class="agent-grid" id="agent-grid">
+        <!-- filled by JS -->
+      </div>
+    </div>
+
+    <!-- Metrics -->
+    <div class="metrics-section">
+      <div class="metric-row">
+        <div class="metric-card">
+          <div class="m-val" id="m-otif" style="color:var(--cyan)">0%</div>
+          <div class="m-label">OTIF</div>
+        </div>
+        <div class="metric-card">
+          <div class="m-val" id="m-delivered" style="color:var(--green)">0</div>
+          <div class="m-label">Delivered</div>
+        </div>
+        <div class="metric-card">
+          <div class="m-val" id="m-score" style="color:var(--purple)">0.00</div>
+          <div class="m-label">Score</div>
+        </div>
+        <div class="metric-card">
+          <div class="m-val" id="m-turn" style="color:var(--amber)">0/6</div>
+          <div class="m-label">Turn</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cargo -->
+    <div class="cargo-section">
+      <div class="section-title">Cargo Queue (from cargo_profiles.json)</div>
+      <div class="cargo-list" id="cargo-list"></div>
+    </div>
+
+    <!-- Chart + Log -->
+    <div class="bottom-section">
+      <div class="chart-wrap">
+        <canvas id="otif-chart"></canvas>
+      </div>
+      <div class="section-title" style="padding:0 12px;flex-shrink:0">Event Log</div>
+      <div class="event-log" id="event-log"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── FOOTER ── -->
+<footer>
+  <div class="turn-track" id="turn-track"></div>
+  <div class="footer-controls">
+    <div class="hbadge" style="border-color:var(--teal);color:var(--teal);background:rgba(0,229,204,.08);font-size:9px">
+      🌊 Sea routes: Mumbai↔Chennai↔Kolkata
+    </div>
+  </div>
+</footer>
+
+</div><!-- .app -->
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+//  DATA  (from environment/world.py + data/*.json)
+// ══════════════════════════════════════════════════════════════════
+
+// City lat/lng
+const CITY_LL = {
+  Mumbai:    [19.076, 72.877],
+  Delhi:     [28.704, 77.102],
+  Kolkata:   [22.573, 88.363],
+  Chennai:   [13.082, 80.270],
+  Bangalore: [12.972, 77.595],
+  Hyderabad: [17.385, 78.486],
+  Pune:      [18.520, 73.856],
+  Ahmedabad: [23.023, 72.572],
+  Jaipur:    [26.912, 75.787],
+  Surat:     [21.170, 72.831],
+};
+
+// Port cities (from port_strike_history in disruption_history.json)
+const PORT_CITIES = new Set(["Mumbai","Chennai","Kolkata"]);
+
+// Road routes (from data/routes.json — real NH distances)
+const ROAD_ROUTES = [
+  {id:"Mumbai-Pune",      from:"Mumbai",    to:"Pune",      dist:150,  cap:195, hw:"NH-48",  tier:"golden_quad"},
+  {id:"Mumbai-Ahmedabad", from:"Mumbai",    to:"Ahmedabad", dist:530,  cap:173, hw:"NH-48",  tier:"golden_quad"},
+  {id:"Mumbai-Surat",     from:"Mumbai",    to:"Surat",     dist:290,  cap:186, hw:"NH-48",  tier:"golden_quad"},
+  {id:"Mumbai-Hyderabad", from:"Mumbai",    to:"Hyderabad", dist:710,  cap:141, hw:"NH-65",  tier:"national"},
+  {id:"Mumbai-Chennai",   from:"Mumbai",    to:"Chennai",   dist:1330, cap:110, hw:"NH-48",  tier:"golden_quad"},
+  {id:"Delhi-Jaipur",     from:"Delhi",     to:"Jaipur",    dist:280,  cap:188, hw:"NH-48",  tier:"golden_quad"},
+  {id:"Delhi-Ahmedabad",  from:"Delhi",     to:"Ahmedabad", dist:950,  cap:162, hw:"NH-48",  tier:"golden_quad"},
+  {id:"Delhi-Kolkata",    from:"Delhi",     to:"Kolkata",   dist:1500, cap:143, hw:"NH-19",  tier:"national"},
+  {id:"Delhi-Mumbai",     from:"Delhi",     to:"Mumbai",    dist:1400, cap:148, hw:"NH-48",  tier:"golden_quad"},
+  {id:"Delhi-Hyderabad",  from:"Delhi",     to:"Hyderabad", dist:1550, cap:106, hw:"NH-44",  tier:"north_south"},
+  {id:"Delhi-Chennai",    from:"Delhi",     to:"Chennai",   dist:2200, cap:89,  hw:"NH-44",  tier:"north_south"},
+  {id:"Kolkata-Hyderabad",from:"Kolkata",   to:"Hyderabad", dist:1500, cap:112, hw:"NH-16",  tier:"east_west"},
+  {id:"Kolkata-Chennai",  from:"Kolkata",   to:"Chennai",   dist:1670, cap:98,  hw:"NH-16",  tier:"east_west"},
+  {id:"Kolkata-Mumbai",   from:"Kolkata",   to:"Mumbai",    dist:2050, cap:88,  hw:"NH-19",  tier:"national"},
+  {id:"Chennai-Bangalore",from:"Chennai",   to:"Bangalore", dist:350,  cap:182, hw:"NH-44",  tier:"north_south"},
+  {id:"Chennai-Hyderabad",from:"Chennai",   to:"Hyderabad", dist:630,  cap:155, hw:"NH-44",  tier:"north_south"},
+  {id:"Bangalore-Hyderabad",from:"Bangalore",to:"Hyderabad",dist:570, cap:159, hw:"NH-44",  tier:"north_south"},
+  {id:"Bangalore-Pune",   from:"Bangalore", to:"Pune",      dist:840,  cap:135, hw:"NH-48",  tier:"golden_quad"},
+  {id:"Pune-Hyderabad",   from:"Pune",      to:"Hyderabad", dist:560,  cap:160, hw:"NH-65",  tier:"national"},
+  {id:"Ahmedabad-Jaipur", from:"Ahmedabad", to:"Jaipur",    dist:670,  cap:150, hw:"NH-48",  tier:"golden_quad"},
+  {id:"Surat-Ahmedabad",  from:"Surat",     to:"Ahmedabad", dist:260,  cap:189, hw:"NH-48",  tier:"golden_quad"},
+  {id:"Jaipur-Surat",     from:"Jaipur",    to:"Surat",     dist:740,  cap:138, hw:"NH-48",  tier:"golden_quad"},
+  {id:"Hyderabad-Bangalore",from:"Hyderabad",to:"Bangalore",dist:570,  cap:159, hw:"NH-44",  tier:"north_south"},
+  {id:"Kolkata-Delhi",    from:"Kolkata",   to:"Delhi",     dist:1500, cap:143, hw:"NH-19",  tier:"national"},
+];
+
+// Sea routes between port cities (JNPT Mumbai, Chennai Port, Kolkata Port)
+const SEA_ROUTES = [
+  {
+    id:"sea-Mumbai-Chennai",
+    from:"Mumbai", to:"Chennai",
+    dist_nm:840, // nautical miles
+    waypoints:[[18.5,72.5],[15.0,73.0],[10.5,75.8],[8.5,77.2],[10.3,80.0]],
+    label:"JNPT Mumbai → Chennai Port",
+  },
+  {
+    id:"sea-Chennai-Kolkata",
+    from:"Chennai", to:"Kolkata",
+    dist_nm:920,
+    waypoints:[[13.5,80.5],[16.0,81.8],[19.5,85.5],[21.2,87.0]],
+    label:"Chennai Port → Kolkata Port",
+  },
+  {
+    id:"sea-Mumbai-Kolkata",
+    from:"Mumbai", to:"Kolkata",
+    dist_nm:1650,
+    waypoints:[[18.5,72.5],[14.0,73.0],[8.0,77.0],[7.5,79.5],[9.5,80.5],[13.5,80.5],[17.0,82.5],[21.2,87.0]],
+    label:"JNPT Mumbai → Kolkata Port (via south coast)",
+  },
+];
+
+// Cargo items (based on real OD pairs from cargo_profiles.json)
+const CARGO = [
+  {id:"C001",type:"cold_chain",  from:"Hyderabad",  to:"Mumbai",  commodity:"Pharma APIs (bulk)",     value:42000, wt:8.5,  deadline:4},
+  {id:"C002",type:"urgent",      from:"Mumbai",     to:"Delhi",   commodity:"Medical Devices",        value:78000, wt:2.1,  deadline:3},
+  {id:"C003",type:"bulk",        from:"Kolkata",    to:"Delhi",   commodity:"Steel/Jute",             value:6500,  wt:38.0, deadline:5},
+  {id:"C004",type:"standard",    from:"Pune",       to:"Delhi",   commodity:"Auto Parts (Pune hub)",  value:14000, wt:12.0, deadline:5},
+  {id:"C005",type:"cold_chain",  from:"Chennai",    to:"Kolkata", commodity:"Seafood/Marine",         value:28000, wt:5.2,  deadline:4},
+  {id:"C006",type:"bulk",        from:"Ahmedabad",  to:"Mumbai",  commodity:"Chemicals/Textiles",     value:5200,  wt:44.0, deadline:6},
+  {id:"C007",type:"urgent",      from:"Bangalore",  to:"Chennai", commodity:"Semiconductor/Electronics",value:65000,wt:1.8, deadline:2},
+  {id:"C008",type:"standard",    from:"Delhi",      to:"Mumbai",  commodity:"FMCG/Electronics",      value:16000, wt:9.5,  deadline:5},
+  {id:"C009",type:"cold_chain",  from:"Kolkata",    to:"Delhi",   commodity:"Fish/Poultry (perishable)",value:18000,wt:4.0,deadline:3},
+  {id:"C010",type:"bulk",        from:"Surat",      to:"Ahmedabad",commodity:"Diamonds/Gems",         value:7800,  wt:28.0, deadline:6},
+];
+
+// Agent profiles (from data/agent_profiles.json)
+const AGENTS = [
+  {id:"carrier_0",     role:"carrier",     icon:"🚛", label:"Carrier-0",   region:"West",  color:"#00d4ff", cls:"carrier",
+   spec:"Bulk & standard NH corridor freight",  cap:210, budget:14200, trucks:14},
+  {id:"warehouse_0",   role:"warehouse",   icon:"🏭", label:"Warehouse-0", region:"South", color:"#a855f7", cls:"warehouse",
+   spec:"Cold chain storage & perishable handling", cap:380, budget:11000, trucks:4},
+  {id:"customs_broker_0",role:"customs_broker",icon:"📋",label:"Customs-0",region:"West",color:"#ffaa00",cls:"customs",
+   spec:"Port clearance & trade corridor negotiation", cap:42, budget:22000, trucks:2},
+  {id:"insurer_0",     role:"insurer",     icon:"🛡️", label:"Insurer-0",   region:"North", color:"#00ff88", cls:"insurer",
+   spec:"Risk coverage for cold chain & urgent cargo", cap:18, budget:34000, trucks:1},
+  {id:"shipper_0",     role:"shipper",     icon:"📦", label:"Shipper-0",   region:"South", color:"#ff4444", cls:"shipper",
+   spec:"Cargo origination & delivery SLA management", cap:145, budget:12500, trucks:9},
+  {id:"geo_analyst_0", role:"geo_analyst", icon:"🌐", label:"GeoAnalyst-0",region:"North", color:"#00e5cc", cls:"geo",
+   spec:"Disruption forecasting & corridor strategy", cap:12, budget:16000, trucks:1},
+];
+
+// ── Simulation script — 6 turns ──────────────────────────────────
+// Each turn: events, agent actions, truck journeys, ship journeys, cargo state changes
+const TURNS = [
+  {
+    turn:0, label:"Init", icon:"🚀", otif:0, delivered:0, score:0.00,
+    title:"System Initialised — Agents Deployed",
+    sub:"6 agents active across India. 10 cargo items queued. All NH routes open.",
+    blocked:[], recovering:[],
+    disruptions:0, openRoutes:24,
+    agentActions:{
+      carrier_0:      {action:"WAIT",r:0.0,badge:"wait",reason:"Fleet deployed. Awaiting first cargo assignment."},
+      warehouse_0:    {action:"WAIT",r:0.0,badge:"wait",reason:"Cold storage units ready. Monitoring pharma queue."},
+      customs_broker_0:{action:"WAIT",r:0.0,badge:"wait",reason:"Port liaison active. JNPT + Chennai cleared."},
+      insurer_0:      {action:"WAIT",r:0.0,badge:"wait",reason:"Underwriting C001 (pharma) and C007 (semiconductor)."},
+      shipper_0:      {action:"WAIT",r:0.0,badge:"wait",reason:"Cargo origination complete. 10 items in queue."},
+      geo_analyst_0:  {action:"WAIT",r:0.0,badge:"wait",reason:"Monsoon watch active. Mumbai flood risk: HIGH."},
+    },
+    cargoStatus:{C001:"queued",C002:"queued",C003:"queued",C004:"queued",C005:"queued",C006:"queued",C007:"queued",C008:"queued",C009:"queued",C010:"queued"},
+    trucks:[], ships:[],
+    rewards:{R1:0,R2:0,R3:0,R4:0,R5:0,R7:0},
+    logs:[
+      {icon:"🚀",text:"<strong>Episode started.</strong> Task: Cascade Failure Recovery (Hard, 20 turns, 3 disruptions)."},
+      {icon:"🗺️",text:"24 NH road routes loaded from <strong>routes.json</strong> (NH-48 Golden Quadrilateral + NH-44 N-S corridor)."},
+      {icon:"🚢",text:"<strong>3 sea routes</strong> active: JNPT Mumbai ↔ Chennai Port ↔ Kolkata Port."},
+      {icon:"📦",text:"10 cargo items generated from <strong>cargo_profiles.json</strong>: 3 cold chain, 3 bulk, 2 standard, 2 urgent."},
+      {icon:"🌊",text:"GeoAnalyst alert: Mumbai <strong>flood probability HIGH</strong> (June–September, EM-DAT historical data)."},
+    ],
+  },
+  {
+    turn:1, label:"Flood", icon:"🌊", otif:10, delivered:1, score:0.10,
+    title:"Mumbai Floods — NH-48 Disrupted",
+    sub:"Severity 4 flood. Mumbai routes blocked. Ships dispatched from JNPT.",
+    blocked:["Mumbai-Pune","Mumbai-Ahmedabad","Mumbai-Surat","Mumbai-Hyderabad"],
+    recovering:[],
+    disruptions:1, openRoutes:20,
+    agentActions:{
+      carrier_0:      {action:"REROUTE",r:1.2,badge:"act",reason:"Mumbai-Pune blocked (NH-48 flooded). Rerouting via Surat→Ahmedabad. ETA +3h."},
+      warehouse_0:    {action:"DEPLOY_COLD_STORAGE",r:0.8,badge:"act",reason:"Deploying cold storage to Hyderabad node. C001 pharma must not spoil."},
+      customs_broker_0:{action:"NEGOTIATE_TRADE_CORRIDOR",r:1.4,badge:"act",reason:"JNPT Mumbai flood — activating sea corridor via JNPT. Ships dispatched."},
+      insurer_0:      {action:"MAKE_BID",r:0.5,badge:"act",reason:"Issuing flood coverage for C001,C002. Bid ₹0.8M to carrier_0."},
+      shipper_0:      {action:"PRIORITIZE_CARGO",r:0.9,badge:"act",reason:"C007 semiconductor → CRITICAL. C001 pharma → HIGH. Escalating to customs_0."},
+      geo_analyst_0:  {action:"ISSUE_GEOPOLITICAL_ALERT",r:1.1,badge:"act",reason:"Mumbai flood severity 4 (ref: 2005 944mm event). Heal ETA: 4–8 turns."},
+    },
+    cargoStatus:{C001:"in-transit",C002:"in-transit",C003:"queued",C004:"in-transit",C005:"queued",C006:"queued",C007:"delivered",C008:"queued",C009:"queued",C010:"queued"},
+    trucks:[
+      {from:"Bangalore",to:"Chennai",  routeId:"Chennai-Bangalore", dist:350, color:"#ff4444", label:"C007 Semiconductor", agent:"carrier_0"},
+      {from:"Mumbai",   to:"Surat",    routeId:"Mumbai-Surat",      dist:290, color:"#00d4ff", label:"C004 Auto Parts (reroute)", agent:"carrier_0"},
+    ],
+    ships:[
+      {seaRouteId:"sea-Mumbai-Chennai", label:"C001 Pharma APIs (cold chain)", agent:"customs_broker_0", color:"#00e5cc"},
+    ],
+    rewards:{R1:1.0,R2:0,R3:0.5,R4:0.8,R5:0.4,R7:-0.3},
+    logs:[
+      {icon:"🌊",text:"<strong>DISRUPTION: Mumbai Flood (severity 4)</strong> — NH-48 blocked. Historical ref: 2005 Mumbai floods (EM-DAT)."},
+      {icon:"🚫",text:"Routes blocked: <strong>Mumbai-Pune, Mumbai-Ahmedabad, Mumbai-Surat, Mumbai-Hyderabad</strong>."},
+      {icon:"✅",text:"<strong>C007 DELIVERED</strong> Bangalore→Chennai. Semiconductor JIT. On time (turn 1 < deadline 2)."},
+      {icon:"🚢",text:"<strong>Ship dispatched:</strong> JNPT Mumbai → Chennai Port. Carrying C001 Pharma APIs (cold chain, $42k)."},
+      {icon:"🚚",text:"carrier_0 REROUTING: Mumbai→Surat (NH-48, 290km, cap 186t). C004 Auto Parts in transit."},
+      {icon:"🛡️",text:"insurer_0: Flood coverage issued for C001+C002. Premium ₹0.8M. R3 negotiation +0.5."},
+      {icon:"🌐",text:"geo_analyst_0: Heal ETA 4-8 turns (from disruption_history.json severity_heal_turns[4]: [6,12])."},
+    ],
+  },
+  {
+    turn:2, label:"Port Strike", icon:"⚓", otif:20, delivered:2, score:0.22,
+    title:"Chennai Port Strike — Ships Diverted",
+    sub:"Dock workers' strike (ref: Chennai Port 2014 — 12-day closure). Ships reroute.",
+    blocked:["Mumbai-Pune","Mumbai-Ahmedabad","Chennai-Bangalore","Chennai-Hyderabad"],
+    recovering:["Mumbai-Surat","Mumbai-Hyderabad"],
+    disruptions:2, openRoutes:18,
+    agentActions:{
+      carrier_0:      {action:"REROUTE",r:1.5,badge:"act",reason:"Mumbai Surat route recovering. Moving C006 (chemicals) Surat→Ahmedabad."},
+      warehouse_0:    {action:"REQUEST_TRANSFER",r:1.0,badge:"act",reason:"C009 fish/poultry expiring T3. Requesting emergency transfer Kolkata→Delhi via NH-19."},
+      customs_broker_0:{action:"REJECT_BID",r:0.4,badge:"act",reason:"Chennai Port strike — cannot clear C005 seafood. Ship diverted to Hyderabad road transfer."},
+      insurer_0:      {action:"ACCEPT_BID",r:0.9,badge:"act",reason:"Accepted carrier_0 bid for C008 FMCG. Coverage $16k. Strike risk priced in."},
+      shipper_0:      {action:"PRIORITIZE_CARGO",r:0.7,badge:"act",reason:"C009 fish/poultry: 1 turn to deadline. Escalating. C002 medical: still in-transit."},
+      geo_analyst_0:  {action:"APPLY_SANCTIONS",r:0.6,badge:"act",reason:"Monitoring Chennai Port CGPDTM dispute. Estimating 3–5 turn resolution (ref: 2014 12-day strike)."},
+    },
+    cargoStatus:{C001:"in-transit",C002:"in-transit",C003:"in-transit",C004:"in-transit",C005:"in-transit",C006:"in-transit",C007:"delivered",C008:"queued",C009:"delivered",C010:"queued"},
+    trucks:[
+      {from:"Surat",    to:"Ahmedabad", routeId:"Surat-Ahmedabad",   dist:260, color:"#00d4ff", label:"C006 Chemicals (Surat→Ahm)", agent:"carrier_0"},
+      {from:"Kolkata",  to:"Delhi",     routeId:"Kolkata-Delhi",     dist:1500, color:"#ff7700", label:"C009 Fish/Poultry (URGENT)", agent:"warehouse_0"},
+      {from:"Delhi",    to:"Mumbai",    routeId:"Delhi-Mumbai",      dist:1400, color:"#ff4444", label:"C002 Medical Devices", agent:"shipper_0"},
+    ],
+    ships:[
+      {seaRouteId:"sea-Mumbai-Chennai", label:"C001 Pharma — still en route (strike detour)", agent:"customs_broker_0", color:"#ffaa00"},
+    ],
+    rewards:{R1:1.5,R2:0,R3:0.8,R4:1.2,R5:0.7,R7:-0.5},
+    logs:[
+      {icon:"⚓",text:"<strong>DISRUPTION: Chennai Port Strike (severity 4)</strong> — dock workers' dispute. Ref: 2018 Chennai Port (7-day closure)."},
+      {icon:"✅",text:"<strong>C009 DELIVERED</strong> Kolkata→Delhi. Fish/Poultry perishable. On time (turn 2 < deadline 3)."},
+      {icon:"🔶",text:"Mumbai-Surat <strong>recovering</strong> (stochastic heal, 15% early recovery each turn)."},
+      {icon:"🚢",text:"Ship C001 diverted — Chennai Port blocked. Adding 2 turns via road transfer from Hyderabad."},
+      {icon:"🚚",text:"3 trucks active: C006 Surat→Ahmedabad (260km), C009 Kolkata→Delhi (1500km), C002 Delhi→Mumbai (1400km)."},
+      {icon:"💰",text:"insurer_0 accepted carrier_0 bid. C008 FMCG covered. R3 negotiation +0.8."},
+      {icon:"📊",text:"Cold chain R4 +1.2 — warehouse cold storage protecting C001 en route."},
+    ],
+  },
+  {
+    turn:3, label:"Coalition", icon:"🤝", otif:50, delivered:5, score:0.50,
+    title:"Coalition COAL_01 Formed — Convoy Operation",
+    sub:"carrier_0 + shipper_0 coalition. 3 trucks convoy Kolkata→Delhi. Ship C005 arrives.",
+    blocked:["Mumbai-Ahmedabad"],
+    recovering:["Mumbai-Pune","Chennai-Bangalore","Chennai-Hyderabad"],
+    disruptions:2, openRoutes:22,
+    agentActions:{
+      carrier_0:      {action:"PROPOSE_COALITION",r:2.0,badge:"coal",reason:"Proposing COAL_01 with shipper_0. Convoy Kolkata→Delhi (C003 steel). Reward split 60/40."},
+      warehouse_0:    {action:"DEPLOY_COLD_STORAGE",r:1.4,badge:"act",reason:"Cold storage convoy escort for C001 (pharma) final leg Hyderabad→Mumbai."},
+      customs_broker_0:{action:"NEGOTIATE_TRADE_CORRIDOR",r:1.2,badge:"act",reason:"Strike resolved. Clearing C005 seafood Chennai→Kolkata sea route."},
+      insurer_0:      {action:"ACCEPT_BID",r:0.8,badge:"coal",reason:"Joined COAL_01 as silent insurer. Coalition cargo risk underwritten."},
+      shipper_0:      {action:"JOIN_COALITION",r:2.0,badge:"coal",reason:"Joined COAL_01. Convoy operation Kolkata→Delhi (C003 bulk steel, 38t)."},
+      geo_analyst_0:  {action:"REQUEST_DIPLOMATIC_BYPASS",r:1.0,badge:"act",reason:"Negotiating Mumbai-Ahmedabad corridor bypass. ETA: next turn."},
+    },
+    cargoStatus:{C001:"in-transit",C002:"delivered",C003:"in-transit",C004:"delivered",C005:"in-transit",C006:"delivered",C007:"delivered",C008:"in-transit",C009:"delivered",C010:"in-transit"},
+    trucks:[
+      {from:"Kolkata",   to:"Delhi",     routeId:"Kolkata-Delhi",      dist:1500, color:"#a855f7", label:"C003 Steel — COAL_01 Convoy", agent:"carrier_0"},
+      {from:"Hyderabad", to:"Mumbai",    routeId:"Mumbai-Hyderabad",   dist:710,  color:"#00e5cc", label:"C001 Pharma (cold chain convoy)", agent:"warehouse_0"},
+      {from:"Ahmedabad", to:"Jaipur",    routeId:"Ahmedabad-Jaipur",   dist:670,  color:"#ffaa00", label:"C010 Diamonds/Gems", agent:"carrier_0"},
+    ],
+    ships:[
+      {seaRouteId:"sea-Chennai-Kolkata", label:"C005 Seafood — Chennai→Kolkata", agent:"customs_broker_0", color:"#00e5cc"},
+    ],
+    rewards:{R1:2.2,R2:1.8,R3:1.0,R4:1.6,R5:1.1,R7:-0.8},
+    logs:[
+      {icon:"🤝",text:"<strong>COAL_01 FORMED</strong> — carrier_0 + shipper_0 coalition. Reward split 60/40. R2 coalition +1.8."},
+      {icon:"✅",text:"<strong>C002 DELIVERED</strong> Delhi→Mumbai. Medical Devices. On time."},
+      {icon:"✅",text:"<strong>C004 DELIVERED</strong> Pune→Delhi. Auto Parts (Pune hub). On time."},
+      {icon:"✅",text:"<strong>C006 DELIVERED</strong> Ahmedabad→Mumbai. Chemicals. On time."},
+      {icon:"🔶",text:"Routes recovering: <strong>Mumbai-Pune, Chennai-Bangalore, Chennai-Hyderabad</strong> (NH-44 + NH-48)."},
+      {icon:"🚢",text:"Ship dispatched: Chennai Port → Kolkata Port. C005 Seafood/Marine Products (cold chain, $28k)."},
+      {icon:"🌱",text:"Carbon R7: −0.8 (reroutes via longer NH-44 path, distance penalty per rewards.py formula)."},
+    ],
+  },
+  {
+    turn:4, label:"Recovery", icon:"💚", otif:80, delivered:8, score:0.75,
+    title:"Network Recovering — Cold Chain Protected",
+    sub:"Routes healing. Ship C005 arrives. Cold chain C001 delivered intact.",
+    blocked:[],
+    recovering:["Mumbai-Ahmedabad"],
+    disruptions:1, openRoutes:23,
+    agentActions:{
+      carrier_0:      {action:"REROUTE",r:1.8,badge:"act",reason:"COAL_01 convoy arrived Delhi. C003 steel delivered. Repositioning for C008."},
+      warehouse_0:    {action:"WAIT",r:1.5,badge:"wait",reason:"C001 pharma delivered cold chain intact. Cold storage R4 +1.8. Reputation +0.2."},
+      customs_broker_0:{action:"ACCEPT_BID",r:1.2,badge:"act",reason:"C005 cleared Kolkata Port. On time delivery. Strike fully resolved."},
+      insurer_0:      {action:"WAIT",r:0.7,badge:"wait",reason:"Zero claims filed. Portfolio intact. COAL_01 dissolved cleanly."},
+      shipper_0:      {action:"REROUTE",r:1.4,badge:"act",reason:"Delivering C008 FMCG Delhi→Mumbai. NH-48 partially open."},
+      geo_analyst_0:  {action:"NEGOTIATE_TRADE_CORRIDOR",r:1.1,badge:"act",reason:"Mumbai-Ahmedabad recovering. Requesting priority corridor for final cargo C010."},
+    },
+    cargoStatus:{C001:"delivered",C002:"delivered",C003:"delivered",C004:"delivered",C005:"delivered",C006:"delivered",C007:"delivered",C008:"in-transit",C009:"delivered",C010:"in-transit"},
+    trucks:[
+      {from:"Delhi",    to:"Mumbai",    routeId:"Delhi-Mumbai",       dist:1400, color:"#00d4ff", label:"C008 FMCG Delhi→Mumbai", agent:"shipper_0"},
+      {from:"Jaipur",   to:"Mumbai",    routeId:"Jaipur-Surat",      dist:740,  color:"#ffaa00", label:"C010 Diamonds via Surat", agent:"carrier_0"},
+    ],
+    ships:[],
+    rewards:{R1:2.8,R2:0.9,R3:1.0,R4:1.8,R5:1.3,R7:-1.1},
+    logs:[
+      {icon:"✅",text:"<strong>C001 DELIVERED</strong> Hyderabad→Mumbai. Pharma APIs cold chain. Intact. R4 cold chain +1.8."},
+      {icon:"✅",text:"<strong>C003 DELIVERED</strong> Kolkata→Delhi. Steel/Jute bulk. COAL_01 convoy success."},
+      {icon:"✅",text:"<strong>C005 DELIVERED</strong> Chennai→Kolkata (sea). Seafood on time. Port strike resolved."},
+      {icon:"💚",text:"Routes healed: <strong>Mumbai-Pune, Chennai-Bangalore, Chennai-Hyderabad, Kolkata-Delhi</strong>."},
+      {icon:"📈",text:"OTIF at <strong>80%</strong>. Score: 0.75. 8 of 10 cargo delivered. 2 in final transit."},
+      {icon:"🌱",text:"Carbon R7: −1.1 cumulative (all reroutes tracked per rewards.py r7_carbon_footprint())."},
+      {icon:"🛡️",text:"insurer_0: Zero claims. Reputation intact. R6 anti-cheat: 0 violations."},
+    ],
+  },
+  {
+    turn:5, label:"Done ✓", icon:"🏆", otif:100, delivered:10, score:0.94,
+    title:"Episode Complete — OTIF 100%",
+    sub:"All 10 cargo delivered. Score 0.94. Zero violations. Carbon within threshold.",
+    blocked:[], recovering:[],
+    disruptions:0, openRoutes:24,
+    agentActions:{
+      carrier_0:      {action:"WAIT",r:2.1,badge:"wait",reason:"All deliveries complete. COAL_01 dissolved. Fleet repositioned. Efficiency 93%."},
+      warehouse_0:    {action:"WAIT",r:1.8,badge:"wait",reason:"Cold chain record: 3/3 intact. Zero spoilage. Reputation 1.4 (+0.4)."},
+      customs_broker_0:{action:"WAIT",r:2.3,badge:"wait",reason:"All clearances verified. 0 tariff breaches. Port strike navigated successfully."},
+      insurer_0:      {action:"WAIT",r:1.5,badge:"wait",reason:"Zero claims filed. All cargo value protected. R6 anti-cheat: clean."},
+      shipper_0:      {action:"WAIT",r:1.9,badge:"wait",reason:"10/10 cargo delivered. SLA met. COAL_01 reward split settled 60/40."},
+      geo_analyst_0:  {action:"WAIT",r:1.2,badge:"wait",reason:"All corridors nominal. Alerts cleared. Disruption forecast: stable."},
+    },
+    cargoStatus:{C001:"delivered",C002:"delivered",C003:"delivered",C004:"delivered",C005:"delivered",C006:"delivered",C007:"delivered",C008:"delivered",C009:"delivered",C010:"delivered"},
+    trucks:[
+      {from:"Delhi",    to:"Mumbai",    routeId:"Delhi-Mumbai",    dist:1400, color:"#00ff88", label:"C008 FMCG — Final Delivery", agent:"shipper_0"},
+      {from:"Surat",    to:"Mumbai",    routeId:"Mumbai-Surat",    dist:290,  color:"#00ff88", label:"C010 Diamonds — Final Delivery", agent:"carrier_0"},
+    ],
+    ships:[],
+    rewards:{R1:3.0,R2:0.9,R3:1.0,R4:1.8,R5:1.4,R7:-1.2},
+    logs:[
+      {icon:"✅",text:"<strong>C008 DELIVERED</strong> Delhi→Mumbai. FMCG/Electronics. On time."},
+      {icon:"✅",text:"<strong>C010 DELIVERED</strong> Jaipur→Surat→Mumbai. Diamonds/Gems. On time."},
+      {icon:"🏆",text:"<strong>EPISODE COMPLETE.</strong> OTIF: 100%. Score: 0.94 (cascade_failure_recovery grader)."},
+      {icon:"🤝",text:"COAL_01 dissolved. Reward split settled: carrier_0 60% | shipper_0 40%."},
+      {icon:"🌱",text:"Total Carbon R7: −1.2 (within threshold). Reroute penalty accepted for 100% OTIF."},
+      {icon:"🛡️",text:"R6 Anti-Cheat: 0 violations. Clean episode. All bids/contracts verified by audit_log."},
+      {icon:"📊",text:"Final score 0.94 > 0.45 threshold. <strong>PASS ✓</strong> (cascade_failure_recovery hard task)."},
+    ],
+  },
+];
+
+// Turn step labels for footer
+const STEP_META = [
+  {label:"T0",name:"Init"},
+  {label:"T1",name:"Flood"},
+  {label:"T2",name:"Strike"},
+  {label:"T3",name:"Coalition"},
+  {label:"T4",name:"Recovery"},
+  {label:"T5",name:"Done ✓"},
+];
+
+// ══════════════════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════════════════
+let simTurn = 0, simRunning = false, simTimer = null;
+
+// ══════════════════════════════════════════════════════════════════
+//  BACKGROUND STARS
+// ══════════════════════════════════════════════════════════════════
+(function(){
+  const c = document.getElementById('bg-canvas');
+  const x = c.getContext('2d');
+  let W,H,stars=[];
+  function resize(){
+    W=c.width=innerWidth; H=c.height=innerHeight;
+    stars=Array.from({length:120},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*.8+.2,s:Math.random()*.1+.03,o:Math.random()*.45+.08}));
+  }
+  function draw(){
+    x.clearRect(0,0,W,H);
+    [[W*.12,H*.3,300,'#5965d3'],[W*.88,H*.6,200,'#00d4ff'],[W*.5,H*.88,240,'#a855f7'],[W*.7,H*.2,160,'#00e5cc']].forEach(([cx,cy,r,col])=>{
+      const g=x.createRadialGradient(cx,cy,0,cx,cy,r);g.addColorStop(0,col+'14');g.addColorStop(1,'transparent');
+      x.fillStyle=g;x.beginPath();x.arc(cx,cy,r,0,Math.PI*2);x.fill();
+    });
+    stars.forEach(s=>{s.y-=s.s;if(s.y<0){s.y=H;s.x=Math.random()*W;}
+      x.beginPath();x.arc(s.x,s.y,s.r,0,Math.PI*2);x.fillStyle=`rgba(255,255,255,${s.o})`;x.fill();});
+    requestAnimationFrame(draw);
+  }
+  resize(); addEventListener('resize',resize); draw();
+})();
+
+// ══════════════════════════════════════════════════════════════════
+//  LEAFLET MAP
+// ══════════════════════════════════════════════════════════════════
+let map, roadPolylines={}, seaPolylines={}, cityMarkers={}, activeTrucks=[], activeShips=[], destPins=[];
+
+function initMap(){
+  map = L.map('leaflet-map',{
+    center:[19.5,78.5], zoom:5,
+    zoomControl:false, attributionControl:false, preferCanvas:false,
+  });
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+    subdomains:'abcd', maxZoom:19,
+  }).addTo(map);
+
+  // ── Draw sea routes first (below road routes) ──
+  SEA_ROUTES.forEach(sr=>{
+    const pts = [CITY_LL[sr.from], ...sr.waypoints.map(w=>[w[0],w[1]]), CITY_LL[sr.to]];
+
+    // Glow layer
+    const glow = L.polyline(pts,{color:'#00e5cc',weight:8,opacity:.08,smoothFactor:2}).addTo(map);
+    // Dashed main line
+    const line = L.polyline(pts,{color:'#00e5cc',weight:2,opacity:.7,dashArray:'10 6',smoothFactor:2}).addTo(map);
+
+    seaPolylines[sr.id] = {line, glow};
+  });
+
+  // ── Draw road routes ──
+  ROAD_ROUTES.forEach(r=>{
+    const from = CITY_LL[r.from], to = CITY_LL[r.to];
+    const mid = [
+      (from[0]+to[0])/2 + (Math.random()-.5)*.5,
+      (from[1]+to[1])/2 + (Math.random()-.5)*.5
+    ];
+
+    // Tier-based glow thickness
+    const glowW = r.tier==='golden_quad' ? 10 : r.tier==='north_south' ? 8 : 6;
+
+    const glow = L.polyline([from,mid,to],{color:'#00d4ff',weight:glowW,opacity:.06,smoothFactor:1}).addTo(map);
+    const line = L.polyline([from,mid,to],{color:'#00d4ff',weight:r.tier==='golden_quad'?2.5:1.8,opacity:.7,smoothFactor:1}).addTo(map);
+
+    roadPolylines[r.id] = {line, glow, mid, state:'open'};
+    // Reverse direction same visual
+    roadPolylines[r.id+'-rev'] = roadPolylines[r.id];
+  });
+
+  // ── City markers ──
+  Object.entries(CITY_LL).forEach(([name, ll])=>{
+    const isPort = PORT_CITIES.has(name);
+    const wrap = document.createElement('div');
+    wrap.className = 'city-wrap';
+    const dot = document.createElement('div');
+    dot.className = 'city-dot' + (isPort?' port':'');
+    const lbl = document.createElement('div');
+    lbl.className = 'city-label';
+    lbl.textContent = name;
+    wrap.appendChild(lbl);
+    wrap.appendChild(dot);
+
+    const icon = L.divIcon({className:'',html:wrap.outerHTML,iconSize:[12,12],iconAnchor:[6,6]});
+    cityMarkers[name] = L.marker(ll,{icon,zIndexOffset:800}).addTo(map);
+
+    // Port label suffix
+    if(isPort){
+      const portLbl = document.createElement('div');
+      portLbl.style.cssText='position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);font-size:7px;color:#00e5cc;font-family:var(--mono);white-space:nowrap;pointer-events:none';
+      portLbl.textContent='⚓ PORT';
+    }
+  });
+}
+
+function setRouteState(routeId, state){
+  const p = roadPolylines[routeId];
+  if(!p) return;
+  if(p.state===state) return;
+  p.state = state;
+  const col = {open:'#00d4ff',blocked:'#ff4444',recovering:'#ffaa00'}[state]||'#00d4ff';
+  const op  = {open:.7,blocked:.9,recovering:.85}[state]||.7;
+  const gOp = {open:.06,blocked:.22,recovering:.16}[state]||.06;
+  const dash= state==='recovering'?'8 5':null;
+  p.line.setStyle({color:col,opacity:op,dashArray:dash});
+  p.glow.setStyle({color:col,opacity:gOp});
+}
+
+function setCityState(name, state){
+  const ll = CITY_LL[name]; if(!ll) return;
+  const isPort = PORT_CITIES.has(name);
+  const wrap = document.createElement('div');
+  wrap.className='city-wrap';
+  const dot = document.createElement('div');
+  dot.className='city-dot'+(isPort?' port':'')+(state==='disrupted'?' disrupted':state==='recovering'?' recovering':'');
+  const lbl = document.createElement('div');
+  lbl.className='city-label';
+  lbl.textContent=name;
+  wrap.appendChild(lbl);
+  wrap.appendChild(dot);
+  const icon=L.divIcon({className:'',html:wrap.outerHTML,iconSize:[12,12],iconAnchor:[6,6]});
+  if(cityMarkers[name]) cityMarkers[name].setIcon(icon);
+}
+
+// ── Truck animation ──────────────────────────────────────────────
+function makeTruckIcon(color, angle, blocked){
+  return L.divIcon({
+    className:'',
+    html:`<div class="truck-wrap${blocked?' blocked':''}">
+      <div class="truck-pulse" style="border-color:${color}"></div>
+      <div class="truck-body" style="transform:scaleX(${angle>90&&angle<270?-1:1});filter:drop-shadow(0 0 8px ${color}) drop-shadow(0 0 20px ${color}55)">🚚</div>
+    </div>`,
+    iconSize:[36,36],iconAnchor:[18,18],
+  });
+}
+
+function makeShipIcon(color){
+  return L.divIcon({
+    className:'',
+    html:`<div class="ship-wrap">
+      <div class="ship-pulse" style="border-color:${color}"></div>
+      <div class="ship-body" style="filter:drop-shadow(0 0 10px ${color}) drop-shadow(0 0 24px ${color}66)">🚢</div>
+    </div>`,
+    iconSize:[40,40],iconAnchor:[20,20],
+  });
+}
+
+function makeDestPin(color){
+  return L.divIcon({
+    className:'',
+    html:`<div class="dest-pin" style="filter:drop-shadow(0 0 7px ${color})">📍</div>`,
+    iconSize:[22,26],iconAnchor:[11,26],
+  });
+}
+
+function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+
+// Animate truck along road bezier
+function animateTruck(j, durationMs=2600){
+  return new Promise(resolve=>{
+    const fromLL=CITY_LL[j.from], toLL=CITY_LL[j.to];
+    if(!fromLL||!toLL){resolve();return;}
+
+    const dx=toLL[1]-fromLL[1], dy=toLL[0]-fromLL[0];
+    const angle=Math.atan2(dx,dy)*180/Math.PI;
+
+    const rp = roadPolylines[j.routeId];
+    const mid = rp ? rp.mid : [(fromLL[0]+toLL[0])/2,(fromLL[1]+toLL[1])/2];
+
+    const truck=L.marker(fromLL,{icon:makeTruckIcon(j.color,angle,false),zIndexOffset:2000}).addTo(map);
+    activeTrucks.push(truck);
+
+    const trail=L.polyline([fromLL],{color:j.color,weight:3,opacity:.85}).addTo(map);
+
+    document.getElementById('hud-route').textContent=`${j.from}→${j.to}`;
+    document.getElementById('hud-dist').textContent=j.dist+'km';
+    document.getElementById('hud-eta').textContent=Math.ceil(j.dist/80)+'h';
+
+    const steps=110, interval=durationMs/steps;
+    let step=0;
+    const pts=[fromLL];
+
+    const tick=setInterval(()=>{
+      step++;
+      const t=step/steps;
+      const ease=t<.5?2*t*t:-1+(4-2*t)*t;
+      const lat=(1-ease)*(1-ease)*fromLL[0]+2*(1-ease)*ease*mid[0]+ease*ease*toLL[0];
+      const lng=(1-ease)*(1-ease)*fromLL[1]+2*(1-ease)*ease*mid[1]+ease*ease*toLL[1];
+      truck.setLatLng([lat,lng]);
+      pts.push([lat,lng]);
+      trail.setLatLngs(pts);
+
+      if(step>=steps){
+        clearInterval(tick);
+        const pin=L.marker(toLL,{icon:makeDestPin(j.color),zIndexOffset:3000}).addTo(map);
+        destPins.push(pin);
+        setTimeout(()=>{try{map.removeLayer(trail);}catch(e){}resolve();},700);
+      }
+    },interval);
+  });
+}
+
+// Animate ship along sea route waypoints
+function animateShip(j, durationMs=4200){
+  return new Promise(resolve=>{
+    const sr=SEA_ROUTES.find(r=>r.id===j.seaRouteId);
+    if(!sr){resolve();return;}
+
+    const allPts=[CITY_LL[sr.from],...sr.waypoints.map(w=>[w[0],w[1]]),CITY_LL[sr.to]];
+    const ship=L.marker(allPts[0],{icon:makeShipIcon(j.color),zIndexOffset:2500}).addTo(map);
+    activeShips.push(ship);
+
+    const wake=L.polyline([allPts[0]],{color:j.color,weight:2.5,opacity:.7,dashArray:'6 4'}).addTo(map);
+
+    document.getElementById('hud-route').textContent=sr.label.substring(0,22)+'…';
+    document.getElementById('hud-dist').textContent=sr.dist_nm+'nm';
+    document.getElementById('hud-eta').textContent=Math.ceil(sr.dist_nm/18)+'h';
+
+    // Build interpolated path through waypoints
+    const segs=[];
+    for(let i=0;i<allPts.length-1;i++) segs.push([allPts[i],allPts[i+1]]);
+
+    const totalSegs=segs.length;
+    const stepsPerSeg=Math.floor(90/totalSegs);
+    let segIdx=0, step=0;
+    const wakePts=[allPts[0]];
+
+    const tick=setInterval(()=>{
+      if(segIdx>=totalSegs){
+        clearInterval(tick);
+        const dest=allPts[allPts.length-1];
+        const pin=L.marker(dest,{icon:makeDestPin(j.color),zIndexOffset:3100}).addTo(map);
+        destPins.push(pin);
+        setTimeout(()=>{try{map.removeLayer(wake);}catch(e){}resolve();},900);
+        return;
+      }
+      step++;
+      const t=step/stepsPerSeg;
+      const from=segs[segIdx][0], to=segs[segIdx][1];
+      const lat=from[0]+(to[0]-from[0])*t;
+      const lng=from[1]+(to[1]-from[1])*t;
+      ship.setLatLng([lat,lng]);
+      wakePts.push([lat,lng]);
+      wake.setLatLngs(wakePts);
+      if(step>=stepsPerSeg){step=0;segIdx++;}
+    }, durationMs/(totalSegs*stepsPerSeg));
+  });
+}
+
+// Run all trucks and ships for a turn (trucks parallel, ships parallel with trucks)
+async function runTransport(turn){
+  const td=TURNS[turn];
+  const truckJobs=td.trucks.map(j=>animateTruck(j,2600));
+  const shipJobs=td.ships.map(j=>animateShip(j,4400));
+  await Promise.all([...truckJobs,...shipJobs]);
+}
+
+// Clear all active vehicle markers
+function clearVehicles(){
+  activeTrucks.forEach(m=>{try{map.removeLayer(m)}catch(e){}});
+  activeShips.forEach(m=>{try{map.removeLayer(m)}catch(e){}});
+  destPins.forEach(m=>{try{map.removeLayer(m)}catch(e){}});
+  activeTrucks=[]; activeShips=[]; destPins=[];
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  CHART
+// ══════════════════════════════════════════════════════════════════
+let chart;
+function initChart(){
+  const ctx=document.getElementById('otif-chart').getContext('2d');
+  chart=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels:['T0'],
+      datasets:[
+        {label:'OTIF %',data:[0],borderColor:'#00d4ff',backgroundColor:'rgba(0,212,255,.07)',borderWidth:2,pointBackgroundColor:'#00d4ff',pointRadius:3,fill:true,tension:.4},
+        {label:'Score ×100',data:[0],borderColor:'#a855f7',backgroundColor:'rgba(168,85,247,.04)',borderWidth:1.5,pointBackgroundColor:'#a855f7',pointRadius:3,fill:false,tension:.4,borderDash:[4,3]},
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      animation:{duration:500},
+      plugins:{legend:{labels:{color:'rgba(255,255,255,.4)',font:{size:8},boxWidth:12}}},
+      scales:{
+        x:{ticks:{color:'rgba(255,255,255,.3)',font:{size:8}},grid:{color:'rgba(255,255,255,.04)'}},
+        y:{min:0,max:100,ticks:{color:'rgba(255,255,255,.3)',font:{size:8}},grid:{color:'rgba(255,255,255,.04)'}},
+      }
+    }
+  });
+}
+
+function updateChart(turn){
+  const td=TURNS[turn];
+  chart.data.labels.push('T'+turn);
+  chart.data.datasets[0].data.push(td.otif);
+  chart.data.datasets[1].data.push(Math.round(td.score*100));
+  chart.update();
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  UI RENDERING
+// ══════════════════════════════════════════════════════════════════
+
+function renderAgents(turn){
+  const td=TURNS[turn];
+  const grid=document.getElementById('agent-grid');
+  grid.innerHTML='';
+  AGENTS.forEach(ag=>{
+    const act=td.agentActions[ag.id]||{action:'WAIT',r:0,badge:'wait',reason:'Idle.'};
+    const inCoal=act.badge==='coal';
+    const card=document.createElement('div');
+    card.className=`agent-card ${ag.cls}${act.badge==='act'?' active':''}${inCoal?' coalition-active':''}`;
+    card.innerHTML=`
+      <div class="a-header">
+        <span class="a-icon">${ag.icon}</span>
+        <div><div class="a-name">${ag.label}</div><div class="a-role">${ag.region} · ${ag.role}</div></div>
+        <span class="a-badge ${act.badge}">${act.badge==='coal'?'COAL':act.badge==='act'?'ACT':'WAIT'}</span>
+      </div>
+      <div class="a-action">${act.action}</div>
+      <div class="a-reasoning">${act.reason}</div>
+      <div class="a-reward" style="color:${act.r>=1.5?'var(--green)':act.r>=0.5?'var(--amber)':'var(--muted)'}">R: +${act.r.toFixed(1)}</div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function renderCargo(turn){
+  const td=TURNS[turn];
+  const list=document.getElementById('cargo-list');
+  list.innerHTML='';
+  CARGO.forEach(c=>{
+    const st=td.cargoStatus[c.id]||'queued';
+    const item=document.createElement('div');
+    item.className=`cargo-item ${st}`;
+    const stLabel={delivered:'✅ DONE',spoiled:'💀 SPOILED','in-transit':'🚛 MOVING',queued:'⏳ QUEUED'}[st]||st;
+    const stCol={delivered:'var(--green)',spoiled:'var(--red)','in-transit':'var(--cyan)',queued:'var(--muted)'}[st]||'var(--muted)';
+    item.innerHTML=`
+      <span class="c-id">${c.id}</span>
+      <span class="c-type ${c.type}">${c.type.replace('_',' ')}</span>
+      <span class="c-od">${c.from.substring(0,3)}→${c.to.substring(0,3)} · ${c.commodity.substring(0,20)}</span>
+      <span class="c-status" style="color:${stCol}">${stLabel}</span>
+    `;
+    list.appendChild(item);
+  });
+}
+
+function renderMetrics(turn){
+  const td=TURNS[turn];
+  document.getElementById('m-otif').textContent=td.otif+'%';
+  document.getElementById('m-delivered').textContent=td.delivered;
+  document.getElementById('m-score').textContent=td.score.toFixed(2);
+  document.getElementById('m-turn').textContent=turn+'/5';
+
+  document.getElementById('hud-trucks').textContent=td.trucks.length;
+  document.getElementById('hud-ships').textContent=td.ships.length;
+  document.getElementById('hud-blocked').textContent=td.blocked.length;
+  document.getElementById('hud-recovering').textContent=td.recovering.length;
+  document.getElementById('hud-disruptions').textContent=td.disruptions;
+  document.getElementById('hud-open').textContent=td.openRoutes;
+}
+
+function addLogs(turn){
+  const td=TURNS[turn];
+  const log=document.getElementById('event-log');
+  td.logs.forEach((l,i)=>{
+    setTimeout(()=>{
+      const item=document.createElement('div');
+      item.className='log-item new';
+      item.innerHTML=`<span class="log-icon">${l.icon}</span><span class="log-text">${l.text}</span>`;
+      log.insertBefore(item,log.firstChild);
+    },i*180);
+  });
+}
+
+function renderFooter(activeTurn){
+  const track=document.getElementById('turn-track');
+  track.innerHTML='';
+  STEP_META.forEach((s,i)=>{
+    const step=document.createElement('div');
+    step.className='turn-step'+(i<activeTurn?' done':i===activeTurn?' active':'');
+    step.innerHTML=`<div class="t-dot"></div><div class="t-label">${s.label}</div><div class="t-name">${s.name}</div>`;
+    step.onclick=()=>{ if(!simRunning) jumpToTurn(i); };
+    track.appendChild(step);
+  });
+}
+
+function showBanner(turn){
+  const td=TURNS[turn];
+  const b=document.getElementById('turn-banner');
+  document.getElementById('banner-icon').textContent=td.icon;
+  document.getElementById('banner-title').textContent=td.title;
+  document.getElementById('banner-sub').textContent=td.sub;
+  b.style.display='block';
+  setTimeout(()=>b.style.display='none',2200);
+}
+
+function applyRouteStates(turn){
+  const td=TURNS[turn];
+  // Reset all to open first
+  ROAD_ROUTES.forEach(r=>setRouteState(r.id,'open'));
+  // Apply blocked
+  td.blocked.forEach(rid=>setRouteState(rid,'blocked'));
+  // Apply recovering
+  td.recovering.forEach(rid=>setRouteState(rid,'recovering'));
+
+  // City disruption state
+  Object.keys(CITY_LL).forEach(c=>setCityState(c,'normal'));
+  const affectedCities=new Set();
+  td.blocked.forEach(rid=>{
+    const r=ROAD_ROUTES.find(x=>x.id===rid);
+    if(r){affectedCities.add(r.from);affectedCities.add(r.to);}
+  });
+  affectedCities.forEach(c=>setCityState(c,'disrupted'));
+  td.recovering.forEach(rid=>{
+    const r=ROAD_ROUTES.find(x=>x.id===rid);
+    if(r){if(!affectedCities.has(r.from))setCityState(r.from,'recovering');if(!affectedCities.has(r.to))setCityState(r.to,'recovering');}
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  SIMULATION CONTROL
+// ══════════════════════════════════════════════════════════════════
+
+async function applyTurn(turn){
+  showBanner(turn);
+  applyRouteStates(turn);
+  renderAgents(turn);
+  renderCargo(turn);
+  renderMetrics(turn);
+  addLogs(turn);
+  renderFooter(turn);
+  if(turn>0) updateChart(turn);
+  await sleep(600);
+  clearVehicles();
+  await runTransport(turn);
+  document.getElementById('hud-route').textContent='—';
+  document.getElementById('hud-dist').textContent='—';
+  document.getElementById('hud-eta').textContent='—';
+}
+
+async function runSimulation(){
+  if(simRunning) return;
+  simRunning=true;
+  document.getElementById('btn-play').disabled=true;
+  document.getElementById('btn-next').disabled=true;
+
+  for(let t=simTurn; t<TURNS.length; t++){
+    simTurn=t;
+    await applyTurn(t);
+    if(t<TURNS.length-1) await sleep(800);
+  }
+  simRunning=false;
+  document.getElementById('btn-play').disabled=true;
+  document.getElementById('btn-next').disabled=true;
+}
+
+async function nextTurn(){
+  if(simRunning||simTurn>=TURNS.length-1) return;
+  simTurn++;
+  await applyTurn(simTurn);
+  if(simTurn>=TURNS.length-1){
+    document.getElementById('btn-next').disabled=true;
+    document.getElementById('btn-play').disabled=true;
+  }
+}
+
+function jumpToTurn(t){
+  simTurn=t;
+  clearVehicles();
+  applyRouteStates(t);
+  renderAgents(t);
+  renderCargo(t);
+  renderMetrics(t);
+  renderFooter(t);
+}
+
+function resetSim(){
+  simRunning=false;
+  simTurn=0;
+  clearVehicles();
+  ROAD_ROUTES.forEach(r=>setRouteState(r.id,'open'));
+  Object.keys(CITY_LL).forEach(c=>setCityState(c,'normal'));
+  document.getElementById('btn-play').disabled=false;
+  document.getElementById('btn-next').disabled=false;
+  document.getElementById('event-log').innerHTML='';
+  document.getElementById('hud-route').textContent='—';
+  document.getElementById('hud-dist').textContent='—';
+  document.getElementById('hud-eta').textContent='—';
+  // Reset chart
+  chart.data.labels=['T0'];
+  chart.data.datasets[0].data=[0];
+  chart.data.datasets[1].data=[0];
+  chart.update();
+  renderAgents(0);
+  renderCargo(0);
+  renderMetrics(0);
+  renderFooter(0);
+  addLogs(0);
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded',()=>{
+  initMap();
+  initChart();
+  renderFooter(0);
+  renderAgents(0);
+  renderCargo(0);
+  renderMetrics(0);
+  addLogs(0);
+
+  document.getElementById('btn-play').addEventListener('click',()=>{
+    document.getElementById('btn-next').disabled=true;
+    runSimulation();
+  });
+  document.getElementById('btn-next').addEventListener('click',nextTurn);
+  document.getElementById('btn-reset').addEventListener('click',resetSim);
+});
+</script>
+</body>
+</html>
