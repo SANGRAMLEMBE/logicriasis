@@ -9,7 +9,7 @@ from typing import Optional
 
 from .models import (
     AgentAction, AgentObservation, AgentRole, ActionType,
-    CargoType, StepResult,
+    CargoType, Disruption, DisruptionType, StepResult,
 )
 from .world import WorldState, Coalition, Bid
 from .rewards import compute_rewards
@@ -79,7 +79,51 @@ class LogiCrisisEnv:
         roles = [role for _, role in self.roster]
         self.world.reset(agent_ids, roles)
         self._action_counts = {aid: 0 for aid in agent_ids}
+        self._inject_live_disruptions()
         return self._build_observations()
+
+    def _inject_live_disruptions(self) -> None:
+        """Pull real-world signals from live APIs and inject as extra disruptions.
+        Runs at the start of every episode. Fails silently — never blocks reset().
+        """
+        try:
+            from .live_data import LiveDataConnector
+            connector = LiveDataConnector()
+
+            # 1. Weather → already typed as Disruption objects
+            for d in connector.get_weather_disruptions():
+                self.world.disruptions.append(d)
+                for route_id in d.affected_routes:
+                    route = self.world.routes.get(route_id)
+                    if route:
+                        route.blocked = True
+
+            # 2. Currency shock → port_strike Disruption on import hubs
+            shock = connector.get_exchange_shocks()
+            if shock:
+                d = Disruption(
+                    disruption_type=DisruptionType.PORT_STRIKE,
+                    severity=shock.severity,
+                    affected_nodes=shock.affected_cities,
+                    affected_routes=[],
+                    turns_remaining=shock.severity + 1,
+                )
+                self.world.disruptions.append(d)
+
+            # 3. Geopolitical conflict cities → road_closure Disruption
+            conflict_cities = connector.get_geopolitical_zones()
+            if conflict_cities:
+                d = Disruption(
+                    disruption_type=DisruptionType.ROAD_CLOSURE,
+                    severity=min(len(conflict_cities), 3),
+                    affected_nodes=conflict_cities,
+                    affected_routes=[],
+                    turns_remaining=3,
+                )
+                self.world.disruptions.append(d)
+
+        except Exception:
+            pass  # never block episode start — world continues with configured disruptions
 
     def step(
         self, actions: dict[str, AgentAction]
