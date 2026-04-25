@@ -74,6 +74,11 @@ STRATEGY HINTS:
 - Bluffing about capacity is allowed in bids, but contract breach penalises you.
 - Model what other agents are likely to bid before setting your own price.
 
+CRITICAL RULE: Check cargo priority field first.
+priority=4 = CRITICAL medical → deliver FIRST always
+priority=3 = HIGH rescue → deliver second
+Example reasoning: "C003 is CRITICAL priority=4, delivering before C001 priority=2"
+
 {_EARTHQUAKE_EXAMPLES}
 {_CAPACITY_BID_EXAMPLES}
 {ACTION_SCHEMA}""",
@@ -153,6 +158,11 @@ STRATEGY HINTS:
 - Counter-propose when carriers overbid — you know your budget ceiling.
 - Model each carrier's true capacity from their past bids to find the best deal.
 - Prioritize cold-chain cargo first — spoilage is a direct reward penalty.
+
+CAPACITY RULE: You start at 25% capacity.
+If idle capacity > 0 → use make_bid to sell it.
+If overwhelmed → use make_bid to buy others' capacity.
+Example reasoning: "30 tons spare, making bid to sell capacity to overloaded insurer_0"
 
 {_CAPACITY_BID_EXAMPLES}
 {ACTION_SCHEMA}""",
