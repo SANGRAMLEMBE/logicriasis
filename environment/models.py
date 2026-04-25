@@ -142,6 +142,9 @@ class AgentObservation:
     active_coalition_id: Optional[str] = None
     active_contracts: list[dict] = field(default_factory=list)
 
+    # Per-agent working memory (last 5 action outcomes this episode)
+    memory: list[str] = field(default_factory=list)
+
     def to_prompt_text(self) -> str:
         lines = [
             f"=== Agent {self.agent_id} | Role: {self.role.value} | Turn {self.turn}/{self.max_turns} ===",
@@ -157,6 +160,8 @@ class AgentObservation:
             f"Active coalition: {self.active_coalition_id}",
             f"Active contracts: {self.active_contracts}",
         ]
+        if self.memory:
+            lines.append(f"MY MEMORY (past actions this episode): {self.memory}")
         return "\n".join(lines)
 
 
