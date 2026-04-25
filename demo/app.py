@@ -17,12 +17,13 @@ _env: LogiCrisisEnv | None = None
 _observations = {}
 _history: list[dict] = []          # per-turn records for the chart
 _belief_state: dict[str, dict] = {}  # theory-of-mind: what each agent thinks about others
+_live_signals_cache: str = ""       # cached live API panel text from reset()
 
 
 # ── Episode control ───────────────────────────────────────────────────────────
 
 def start_episode(disruption_type: str, severity: int, curriculum_level: int):
-    global _env, _observations, _history, _belief_state
+    global _env, _observations, _history, _belief_state, _live_signals_cache
     _env = LogiCrisisEnv(curriculum_level=int(curriculum_level), seed=42)
     _observations = _env.reset()
 
@@ -36,6 +37,7 @@ def start_episode(disruption_type: str, severity: int, curriculum_level: int):
 
     _history = []
     _belief_state = _init_belief_state()
+    _live_signals_cache = _build_live_signals_panel()
 
     snap = _env.state()
     status = (
@@ -51,6 +53,8 @@ def start_episode(disruption_type: str, severity: int, curriculum_level: int):
         _format_state(snap),
         _format_belief_state(),
         _overseer_report([]),
+        _live_signals_cache,
+        _format_memory_panel(),
         0.0,
         0,
     )
@@ -98,7 +102,7 @@ def auto_step():
     if _env is None:
         return ("Click 'Start Episode' first.",
                 _empty_chart(), "", _format_belief_state(),
-                _overseer_report([]), 0.0, 0)
+                _overseer_report([]), "", "", 0.0, 0)
 
     actions = {aid: _pick_heuristic_action(aid, obs)
                for aid, obs in _observations.items()}
@@ -137,6 +141,8 @@ def auto_step():
         _format_state(snap),
         _format_belief_state(),
         _overseer_report(list(actions.values())),
+        _live_signals_cache,
+        _format_memory_panel(),
         float(snap["otif_percent"]),
         int(snap["turn"]),
     )
@@ -252,6 +258,88 @@ def _overseer_report(actions: list[AgentAction]) -> str:
         lines.append(f"\nOTIF trajectory: {arrow} {delta:+.1f}% this turn "
                      f"(now {_history[-1]['OTIF %']:.1f}%)")
 
+    return "\n".join(lines)
+
+
+# ── Live API signals panel ────────────────────────────────────────────────────
+
+def _build_live_signals_panel() -> str:
+    """Show real-world signals injected at episode start from 3 APIs."""
+    if _env is None:
+        return "Start an episode to see live API signals."
+    ctx = getattr(_env, "_live_context", None)
+    if ctx is None:
+        return "No live context (APIs may be offline — using synthetic disruptions)."
+
+    lines = ["=== LIVE REAL-WORLD SIGNALS (injected at episode start) ===\n"]
+
+    # Weather
+    if ctx.weather_alerts:
+        lines.append("WEATHER (OpenWeatherMap):")
+        for a in ctx.weather_alerts:
+            lines.append(
+                f"  {a.city} ({a.region}): {a.condition}  severity={a.severity}"
+                + (f"  routes_at_risk={a.disrupts_routes}" if a.disrupts_routes else "")
+            )
+    else:
+        lines.append("WEATHER: No severe alerts detected.")
+
+    lines.append("")
+
+    # Currency
+    if ctx.currency_signal:
+        sig = ctx.currency_signal
+        shock = "  *** TARIFF SHOCK ACTIVE ***" if sig.shock_active else "  (stable)"
+        lines.append(f"CURRENCY (ExchangeRate-API):")
+        lines.append(f"  {sig.pair}: {sig.rate:.2f}  ({sig.swing_pct:+.1f}% vs baseline){shock}")
+    else:
+        lines.append("CURRENCY: No significant swing detected.")
+
+    lines.append("")
+
+    # Conflict
+    if ctx.conflict_signal and ctx.conflict_signal.affected_cities:
+        sig = ctx.conflict_signal
+        lines.append(f"GEOPOLITICAL (GDELT):")
+        lines.append(f"  Cities affected: {sig.affected_cities}")
+        lines.append(f"  Keywords: {sig.keywords_found[:4]}")
+        lines.append(f"  Severity: {sig.severity}")
+    else:
+        lines.append("GEOPOLITICAL: No active conflict signals.")
+
+    lines.append("")
+
+    # Commodity
+    if ctx.commodity_signal:
+        sig = ctx.commodity_signal
+        lines.append(f"COMMODITY:")
+        lines.append(f"  {sig.commodity}: ${sig.price_usd:.1f}/bbl  ({sig.change_pct:+.1f}%)  impact={sig.impact}")
+
+    lines.append("\n(These signals are converted into route disruptions and shown to relevant agents.)")
+    return "\n".join(lines)
+
+
+# ── Agent memory panel ────────────────────────────────────────────────────────
+
+def _format_memory_panel() -> str:
+    """Show each agent's current working memory (last 5 action outcomes)."""
+    if _env is None:
+        return "Start an episode to see agent memory."
+    mem = getattr(_env, "agent_memory", {})
+    if not any(mem.values()):
+        return "No memory entries yet — memory builds up as agents take actions."
+
+    lines = ["=== AGENT WORKING MEMORY (last 5 outcomes per agent) ===\n"]
+    for agent_id, entries in mem.items():
+        role = _env.world.agent_states[agent_id].role.value if agent_id in _env.world.agent_states else ""
+        lines.append(f"{agent_id} [{role}]:")
+        if entries:
+            for e in entries:
+                lines.append(f"  • {e}")
+        else:
+            lines.append("  (no actions taken yet)")
+        lines.append("")
+    lines.append("Memory prevents agents from repeating failed routes or looping on WAIT.")
     return "\n".join(lines)
 
 
@@ -432,6 +520,19 @@ Stack: **OpenEnv** (environment) → **6 independent reward functions** (verifie
         height=300,
     )
 
+    # ── Live API signals + Agent Memory ──────────────────────────────────────
+    with gr.Row():
+        with gr.Column():
+            gr.Markdown("### Live Real-World API Signals")
+            live_signals_box = gr.Textbox(
+                label="OpenWeatherMap + ExchangeRate-API + GDELT (injected at episode start)",
+                lines=14, max_lines=20)
+        with gr.Column():
+            gr.Markdown("### Agent Working Memory")
+            memory_box = gr.Textbox(
+                label="Last 5 action outcomes per agent (prevents action loops)",
+                lines=14, max_lines=20)
+
     # ── Theory-of-Mind + Overseer ─────────────────────────────────────────────
     with gr.Row():
         with gr.Column():
@@ -486,7 +587,8 @@ Stack: **OpenEnv** (environment) → **6 independent reward functions** (verifie
     grade_btn.click(fn=run_full_episode, inputs=[task_dd], outputs=[grade_box])
 
     # ── Button wiring ─────────────────────────────────────────────────────────
-    outputs = [status_box, otif_chart, state_box, belief_box, overseer_box, otif_num, turn_num]
+    outputs = [status_box, otif_chart, state_box, belief_box, overseer_box,
+               live_signals_box, memory_box, otif_num, turn_num]
 
     start_btn.click(
         fn=start_episode,

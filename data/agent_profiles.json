@@ -1,0 +1,63 @@
+{
+  "_comment": "Agent resource profiles based on typical Indian logistics company benchmarks (CRISIL, NITI Aayog logistics reports). Budget in simulation units (~USD thousands).",
+
+  "carrier": {
+    "_comment": "Road freight carriers (trucking companies). High capacity, medium budget, zero cold storage unless specialized.",
+    "capacity_tons":       [120.0, 280.0],
+    "budget":              [8000,  18000],
+    "trucks":              [8,     20],
+    "cold_storage_units":  [0,     1],
+    "home_regions":        ["West", "North"],
+    "specialization":      "bulk and standard freight movement on NH corridors"
+  },
+
+  "warehouse": {
+    "_comment": "Warehouse operators (3PL). High cold storage, moderate capacity for staging, moderate budget.",
+    "capacity_tons":       [200.0, 500.0],
+    "budget":              [6000,  14000],
+    "trucks":              [2,     5],
+    "cold_storage_units":  [3,     8],
+    "home_regions":        ["West", "South"],
+    "specialization":      "cold chain storage, staging, cold_chain and perishable cargo handling"
+  },
+
+  "customs_broker": {
+    "_comment": "Customs clearance agents. Low physical capacity but high budget (handle high-value goods). Active near ports.",
+    "capacity_tons":       [20.0,  60.0],
+    "budget":              [12000, 28000],
+    "trucks":              [1,     3],
+    "cold_storage_units":  [0,     1],
+    "home_regions":        ["West", "East"],
+    "specialization":      "trade corridor negotiation, tariff management, port-adjacent clearance"
+  },
+
+  "insurer": {
+    "_comment": "Cargo insurance underwriters. Minimal physical capacity, very high budget for risk coverage and claims.",
+    "capacity_tons":       [10.0,  30.0],
+    "budget":              [18000, 40000],
+    "trucks":              [0,     2],
+    "cold_storage_units":  [0,     0],
+    "home_regions":        ["North", "West"],
+    "specialization":      "risk pricing, coverage for high-value cold_chain and urgent cargo"
+  },
+
+  "shipper": {
+    "_comment": "Shippers/consignors (manufacturers placing cargo). Medium capacity, medium budget, most cargo ownership.",
+    "capacity_tons":       [80.0,  200.0],
+    "budget":              [7000,  16000],
+    "trucks":              [4,     12],
+    "cold_storage_units":  [0,     2],
+    "home_regions":        ["South", "West"],
+    "specialization":      "cargo origination, delivery SLA management, prioritisation decisions"
+  },
+
+  "geopolitical_analyst": {
+    "_comment": "Geopolitical risk analysts. Minimal physical resources but critical for early warning and corridor strategy.",
+    "capacity_tons":       [5.0,   20.0],
+    "budget":              [9000,  20000],
+    "trucks":              [0,     1],
+    "cold_storage_units":  [0,     0],
+    "home_regions":        ["North", "East"],
+    "specialization":      "disruption forecasting, trade corridor negotiation, sanctions management"
+  }
+}
