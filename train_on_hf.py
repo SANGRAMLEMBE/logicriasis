@@ -33,7 +33,7 @@ def install():
     subprocess.run(
         [sys.executable, "-m", "pip", "install", "-q",
          "torch==2.6.0", "torchvision", "torchaudio",
-         "--index-url", "https://download.pytorch.org/whl/cu124"],
+         "--extra-index-url", "https://download.pytorch.org/whl/cu124"],
         check=True,
     )
     pkgs = [
