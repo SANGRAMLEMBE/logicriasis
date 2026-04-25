@@ -68,10 +68,10 @@ _check("Open-Meteo (Mumbai weather)", _test_open_meteo)
 
 
 # ── 2. OpenWeatherMap (optional key) ─────────────────────────────────────────
-print("\n[2] OpenWeatherMap Weather (optional — set OPENWEATHERMAP_API_KEY)")
+print("\n[2] OpenWeatherMap Weather (optional — set scaler_weather)")
 
 def _test_owm():
-    key = os.environ["OPENWEATHERMAP_API_KEY"]
+    key = os.environ["scaler_weather"]
     resp = requests.get(
         "https://api.openweathermap.org/data/2.5/weather",
         params={"q": "Mumbai,IN", "appid": key, "units": "metric"},
@@ -83,7 +83,7 @@ def _test_owm():
     desc = d["weather"][0]["description"]
     return f"Mumbai temp={temp}C condition={desc}"
 
-_check("OpenWeatherMap (Mumbai)", _test_owm, expect_key="OPENWEATHERMAP_API_KEY")
+_check("OpenWeatherMap (Mumbai)", _test_owm, expect_key="scaler_weather")
 
 
 # ── 3. ExchangeRate-API (no key) ─────────────────────────────────────────────
