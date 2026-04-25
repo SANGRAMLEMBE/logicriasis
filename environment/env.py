@@ -15,13 +15,14 @@ from .world import WorldState, Coalition, Bid
 from .rewards import compute_rewards
 from .geopolitical import GeopoliticalState
 
-# Default agent roster (matches 5-agent design in blueprint)
+# Default agent roster (6-agent design including GeopoliticalAnalyst)
 DEFAULT_AGENTS = [
-    ("carrier_0",        AgentRole.CARRIER),
-    ("warehouse_0",      AgentRole.WAREHOUSE),
-    ("customs_broker_0", AgentRole.CUSTOMS_BROKER),
-    ("insurer_0",        AgentRole.INSURER),
-    ("shipper_0",        AgentRole.SHIPPER),
+    ("carrier_0",          AgentRole.CARRIER),
+    ("warehouse_0",        AgentRole.WAREHOUSE),
+    ("customs_broker_0",   AgentRole.CUSTOMS_BROKER),
+    ("insurer_0",          AgentRole.INSURER),
+    ("shipper_0",          AgentRole.SHIPPER),
+    ("geo_analyst_0",      AgentRole.GEOPOLITICAL_ANALYST),
 ]
 
 ACTION_TIMEOUT_SEC = 5.0   # per-agent action timeout guard (section 8)
