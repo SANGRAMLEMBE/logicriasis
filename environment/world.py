@@ -4,6 +4,8 @@ Holds the ground-truth supply network graph, cargo queue, and resource pool.
 Agents NEVER see this directly — they receive filtered AgentObservation objects.
 """
 from __future__ import annotations
+import json
+import os
 import random
 import uuid
 from dataclasses import dataclass, field
@@ -14,26 +16,25 @@ from .models import (
 )
 
 
+# ── Load realistic data files ─────────────────────────────────────────────────
+
+_DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
+
+def _load_json(filename: str) -> dict:
+    path = os.path.join(_DATA_DIR, filename)
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+_ROUTES_DATA      = _load_json("routes.json")
+_CARGO_DATA       = _load_json("cargo_profiles.json")
+_DISRUPTION_DATA  = _load_json("disruption_history.json")
+_AGENT_DATA       = _load_json("agent_profiles.json")
+
+
 # ── Network topology ──────────────────────────────────────────────────────────
 
 NODES = ["Mumbai", "Delhi", "Kolkata", "Chennai", "Bangalore",
          "Hyderabad", "Pune", "Ahmedabad", "Jaipur", "Surat"]
-
-EDGES: list[tuple[str, str, float]] = [
-    ("Mumbai",    "Pune",      150),
-    ("Mumbai",    "Ahmedabad", 530),
-    ("Mumbai",    "Surat",     290),
-    ("Delhi",     "Jaipur",    280),
-    ("Delhi",     "Ahmedabad", 950),
-    ("Kolkata",   "Hyderabad", 1500),
-    ("Chennai",   "Bangalore", 350),
-    ("Chennai",   "Hyderabad", 630),
-    ("Bangalore", "Hyderabad", 570),
-    ("Bangalore", "Pune",      840),
-    ("Pune",      "Hyderabad", 560),
-    ("Ahmedabad", "Jaipur",    670),
-    ("Surat",     "Ahmedabad", 260),
-]
 
 REGIONS = {
     "West":  ["Mumbai", "Pune", "Surat", "Ahmedabad"],
@@ -42,18 +43,24 @@ REGIONS = {
     "South": ["Chennai", "Bangalore", "Hyderabad"],
 }
 
+# Build EDGES from data file (real NH distances + traffic-based capacities)
+EDGES: list[tuple[str, str, float, float]] = [
+    (r["from"], r["to"], r["distance_km"], r["capacity_tons"])
+    for r in _ROUTES_DATA["routes"]
+]
+
 
 def _build_routes(rng: random.Random = None) -> dict[str, Route]:
     routes: dict[str, Route] = {}
-    for (a, b, dist) in EDGES:
-        # Capacity is distance-based (shorter roads = higher throughput). Deterministic.
-        capacity = round(max(50.0, 220.0 - dist / 8.0), 1)
+    for (a, b, dist, capacity) in EDGES:
         rid = f"{a}-{b}"
         routes[rid] = Route(route_id=rid, from_node=a, to_node=b,
                             distance_km=dist, capacity_tons=capacity)
+        # Add reverse direction with same distance and capacity
         rid2 = f"{b}-{a}"
-        routes[rid2] = Route(route_id=rid2, from_node=b, to_node=a,
-                             distance_km=dist, capacity_tons=capacity)
+        if rid2 not in routes:
+            routes[rid2] = Route(route_id=rid2, from_node=b, to_node=a,
+                                 distance_km=dist, capacity_tons=capacity)
     return routes
 
 
@@ -167,43 +174,70 @@ class WorldState:
         self._inject_disruptions()
 
     def _assign_agents(self, agent_ids: list[str], roles: list[AgentRole]) -> None:
-        region_list = list(REGIONS.keys())
         for i, (aid, role) in enumerate(zip(agent_ids, roles)):
-            region = region_list[i % len(region_list)]
+            profile = _AGENT_DATA.get(role.value, _AGENT_DATA["carrier"])
+            home_regions = profile.get("home_regions", list(REGIONS.keys()))
+            region = home_regions[i % len(home_regions)]
+
+            cap_min, cap_max = profile["capacity_tons"]
+            bud_min, bud_max = profile["budget"]
+            trk_min, trk_max = profile["trucks"]
+            csu_min, csu_max = profile["cold_storage_units"]
+
             self.agent_states[aid] = AgentState(
                 agent_id=aid,
                 role=role,
                 region=region,
-                capacity_tons=self.rng.uniform(80, 200) * self._capacity_multiplier,
-                budget=self.rng.uniform(5000, 15000),
-                trucks=self.rng.randint(3, 10),
-                cold_storage_units=self.rng.randint(0, 3),
+                capacity_tons=round(self.rng.uniform(cap_min, cap_max) * self._capacity_multiplier, 1),
+                budget=round(self.rng.uniform(bud_min, bud_max), 0),
+                trucks=self.rng.randint(trk_min, trk_max),
+                cold_storage_units=self.rng.randint(csu_min, csu_max),
             )
 
     def _generate_cargo(self) -> None:
         n_cargo = self._cargo_count if self._cargo_count is not None \
             else {1: 5, 2: 15, 3: 20}.get(self.curriculum_level, 5)
-        nodes = NODES
+
+        type_weights  = {k: v for k, v in _CARGO_DATA["type_weights"].items() if not k.startswith("_")}
+        value_ranges  = _CARGO_DATA["value_range_usd"]
+        weight_ranges = _CARGO_DATA["weight_range_tons"]
+        deadline_ranges = _CARGO_DATA["deadline_range_turns"]
+        od_pairs      = _CARGO_DATA["od_pairs"]
+        type_keys = list(type_weights.keys())
+        type_probs = list(type_weights.values())
+
         for i in range(n_cargo):
-            # Step 1: cargo type (same call as original)
+            # Cargo type: use realistic freight distribution weights
             if self._cold_chain_ratio >= 1.0:
                 ctype = CargoType.COLD_CHAIN
-                _ = self.rng.choice(list(CargoType))   # consume call to keep RNG sequence identical
             elif self._cold_chain_ratio > 0 and self.rng.random() < self._cold_chain_ratio:
                 ctype = CargoType.COLD_CHAIN
             else:
-                ctype = self.rng.choice(list(CargoType))
+                chosen = self.rng.choices(type_keys, weights=type_probs, k=1)[0]
+                ctype = CargoType(chosen)
 
-            # Steps 2-7: same rng call order as original
-            value       = self.rng.uniform(500, 5000)
-            raw_deadline = self.rng.randint(5, self.max_turns)
-            origin      = self.rng.choice(nodes)
-            destination = self.rng.choice(nodes)
-            weight      = self.rng.uniform(1, 30)
-            owner       = self.rng.choice(list(self.agent_states.keys()))
+            tkey = ctype.value
+            val_min, val_max   = value_ranges[tkey]
+            wgt_min, wgt_max   = weight_ranges[tkey]
+            ddl_min, ddl_max   = deadline_ranges[tkey]
 
+            value  = round(self.rng.uniform(val_min, val_max), 2)
+            weight = round(self.rng.uniform(wgt_min, wgt_max), 2)
+
+            # Origin/destination: use realistic trade OD pairs (80%) or random (20%)
+            if self.rng.random() < 0.80 and od_pairs.get(tkey):
+                pair = self.rng.choice(od_pairs[tkey])
+                origin      = pair["origin"]
+                destination = pair["destination"]
+            else:
+                origin      = self.rng.choice(NODES)
+                destination = self.rng.choice(NODES)
+
+            raw_deadline = self.rng.randint(ddl_min, min(ddl_max, self.max_turns))
             deadline = min(raw_deadline, self._deadline_max) \
                 if self._deadline_max is not None else raw_deadline
+
+            owner = self.rng.choice(list(self.agent_states.keys()))
 
             priority = {
                 CargoType.URGENT: 4, CargoType.COLD_CHAIN: 3,
@@ -227,21 +261,68 @@ class WorldState:
     def _inject_disruptions(self) -> None:
         n_dis = self._disruption_count if self._disruption_count is not None \
             else self.curriculum_level
+
+        _dtype_weights = {k: v for k, v in _DISRUPTION_DATA["disruption_type_weights"].items() if not k.startswith("_")}
+        dtype_keys   = list(_dtype_weights.keys())
+        dtype_probs  = list(_dtype_weights.values())
+        flood_cities = _DISRUPTION_DATA["flood_prone_cities"]
+        heal_ranges  = _DISRUPTION_DATA["severity_heal_turns"]
+
         for _ in range(n_dis):
-            dtype = self.rng.choice(list(DisruptionType))
-            severity = self.rng.randint(1, min(self.curriculum_level * 2, 5))
-            affected_nodes = self.rng.sample(NODES, k=min(severity, len(NODES)))
+            # Pick disruption type using historical frequency weights
+            dtype_str = self.rng.choices(dtype_keys, weights=dtype_probs, k=1)[0]
+            dtype = DisruptionType(dtype_str)
+
+            # Severity capped by curriculum level
+            max_sev = min(self.curriculum_level * 2, 5)
+
+            if dtype == DisruptionType.FLOOD:
+                # Pick cities weighted by their historical flood frequency
+                freq_map = {"high": 3, "medium": 2, "low": 1, "rare": 0.5}
+                flood_weights = [freq_map.get(flood_cities[c]["frequency"], 1) for c in NODES]
+                severity_range = flood_cities.get(
+                    self.rng.choices(NODES, weights=flood_weights, k=1)[0],
+                    {}
+                ).get("typical_severity", [1, max_sev])
+                severity = min(self.rng.randint(*severity_range), max_sev)
+                # High-frequency flood cities are more likely affected
+                weighted_nodes = self.rng.choices(
+                    NODES, weights=flood_weights, k=min(severity + 1, len(NODES))
+                )
+                affected_nodes = list(dict.fromkeys(weighted_nodes))[:severity]
+
+            elif dtype == DisruptionType.PORT_STRIKE:
+                # Port strikes hit port cities: Mumbai, Chennai, Kolkata
+                port_cities = ["Mumbai", "Chennai", "Kolkata"]
+                severity = self.rng.randint(2, max_sev)
+                n_ports = min(severity // 2 + 1, len(port_cities))
+                affected_nodes = self.rng.sample(port_cities, k=max(1, n_ports))
+
+            else:  # ROAD_CLOSURE
+                # Road closures: pick from historically closed routes
+                closure_routes = _DISRUPTION_DATA["road_closure_history"]
+                if closure_routes:
+                    chosen = self.rng.choice(closure_routes)
+                    route_cities = [chosen["route"].split("-")[0],
+                                    chosen["route"].split("-")[1]]
+                    affected_nodes = [c for c in route_cities if c in NODES]
+                else:
+                    affected_nodes = self.rng.sample(NODES, k=2)
+                severity = self.rng.randint(1, max(1, max_sev - 1))
+
             affected_routes = [
                 rid for rid, r in self.routes.items()
                 if r.from_node in affected_nodes or r.to_node in affected_nodes
             ]
-            # Block some routes proportional to severity
             routes_to_block = self.rng.sample(
                 affected_routes, k=min(severity * 2, len(affected_routes))
             )
+
+            # Heal time based on historical event durations
+            heal_min, heal_max = heal_ranges.get(str(severity), [3, 8])
             for rid in routes_to_block:
                 self.routes[rid].blocked = True
-                self._route_heal_at[rid] = self.turn + self.rng.randint(3, 8)
+                self._route_heal_at[rid] = self.turn + self.rng.randint(heal_min, heal_max)
 
             self.disruptions.append(Disruption(
                 disruption_type=dtype,

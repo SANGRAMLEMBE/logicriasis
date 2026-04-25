@@ -1,0 +1,29 @@
+{
+  "_comment": "Real NH (National Highway) distances between 10 Indian cities. Capacity based on actual freight traffic volumes on each corridor.",
+  "routes": [
+    {"from": "Mumbai",    "to": "Pune",      "distance_km": 150,  "capacity_tons": 195.0, "highway": "NH-48",  "tier": "golden_quad"},
+    {"from": "Mumbai",    "to": "Ahmedabad", "distance_km": 530,  "capacity_tons": 173.0, "highway": "NH-48",  "tier": "golden_quad"},
+    {"from": "Mumbai",    "to": "Surat",     "distance_km": 290,  "capacity_tons": 186.0, "highway": "NH-48",  "tier": "golden_quad"},
+    {"from": "Mumbai",    "to": "Hyderabad", "distance_km": 710,  "capacity_tons": 141.0, "highway": "NH-65",  "tier": "national"},
+    {"from": "Mumbai",    "to": "Chennai",   "distance_km": 1330, "capacity_tons": 110.0, "highway": "NH-48",  "tier": "golden_quad"},
+    {"from": "Delhi",     "to": "Jaipur",    "distance_km": 280,  "capacity_tons": 188.0, "highway": "NH-48",  "tier": "golden_quad"},
+    {"from": "Delhi",     "to": "Ahmedabad", "distance_km": 950,  "capacity_tons": 162.0, "highway": "NH-48",  "tier": "golden_quad"},
+    {"from": "Delhi",     "to": "Kolkata",   "distance_km": 1500, "capacity_tons": 143.0, "highway": "NH-19",  "tier": "national"},
+    {"from": "Delhi",     "to": "Mumbai",    "distance_km": 1400, "capacity_tons": 148.0, "highway": "NH-48",  "tier": "golden_quad"},
+    {"from": "Delhi",     "to": "Hyderabad", "distance_km": 1550, "capacity_tons": 106.0, "highway": "NH-44",  "tier": "north_south"},
+    {"from": "Delhi",     "to": "Chennai",   "distance_km": 2200, "capacity_tons": 89.0,  "highway": "NH-44",  "tier": "north_south"},
+    {"from": "Kolkata",   "to": "Hyderabad", "distance_km": 1500, "capacity_tons": 112.0, "highway": "NH-16",  "tier": "east_west"},
+    {"from": "Kolkata",   "to": "Chennai",   "distance_km": 1670, "capacity_tons": 98.0,  "highway": "NH-16",  "tier": "east_west"},
+    {"from": "Kolkata",   "to": "Mumbai",    "distance_km": 2050, "capacity_tons": 88.0,  "highway": "NH-19",  "tier": "national"},
+    {"from": "Chennai",   "to": "Bangalore", "distance_km": 350,  "capacity_tons": 182.0, "highway": "NH-44",  "tier": "north_south"},
+    {"from": "Chennai",   "to": "Hyderabad", "distance_km": 630,  "capacity_tons": 155.0, "highway": "NH-44",  "tier": "north_south"},
+    {"from": "Bangalore", "to": "Hyderabad", "distance_km": 570,  "capacity_tons": 159.0, "highway": "NH-44",  "tier": "north_south"},
+    {"from": "Bangalore", "to": "Pune",      "distance_km": 840,  "capacity_tons": 135.0, "highway": "NH-48",  "tier": "golden_quad"},
+    {"from": "Pune",      "to": "Hyderabad", "distance_km": 560,  "capacity_tons": 160.0, "highway": "NH-65",  "tier": "national"},
+    {"from": "Ahmedabad", "to": "Jaipur",    "distance_km": 670,  "capacity_tons": 150.0, "highway": "NH-48",  "tier": "golden_quad"},
+    {"from": "Surat",     "to": "Ahmedabad", "distance_km": 260,  "capacity_tons": 189.0, "highway": "NH-48",  "tier": "golden_quad"},
+    {"from": "Jaipur",    "to": "Surat",     "distance_km": 740,  "capacity_tons": 138.0, "highway": "NH-48",  "tier": "golden_quad"},
+    {"from": "Hyderabad", "to": "Bangalore", "distance_km": 570,  "capacity_tons": 159.0, "highway": "NH-44",  "tier": "north_south"},
+    {"from": "Kolkata",   "to": "Delhi",     "distance_km": 1500, "capacity_tons": 143.0, "highway": "NH-19",  "tier": "national"}
+  ]
+}
