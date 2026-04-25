@@ -151,6 +151,7 @@ _MEMORY_RULE = """MEMORY RULE: Your observation includes a MY MEMORY section wit
 - If you WAITED last turn → act this turn, do not loop
 Use memory to avoid repeating failed actions and build on what worked."""
 
+
 # ── System prompt builder ─────────────────────────────────────────────────────
 
 def _build_system_prompt(role: str) -> str:

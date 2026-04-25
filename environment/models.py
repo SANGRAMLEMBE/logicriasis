@@ -16,6 +16,7 @@ class AgentRole(str, Enum):
     CUSTOMS_BROKER = "customs_broker"
     INSURER = "insurer"
     SHIPPER = "shipper"
+    GEOPOLITICAL_ANALYST = "geopolitical_analyst"
 
 
 class DisruptionType(str, Enum):
@@ -42,6 +43,11 @@ class ActionType(str, Enum):
     ASSIGN_COALITION_ROLE = "assign_coalition_role"
     # No-op
     WAIT = "wait"
+    # Geopolitical
+    ISSUE_GEOPOLITICAL_ALERT = "issue_geopolitical_alert"
+    NEGOTIATE_TRADE_CORRIDOR = "negotiate_trade_corridor"
+    APPLY_SANCTIONS = "apply_sanctions"
+    REQUEST_DIPLOMATIC_BYPASS = "request_diplomatic_bypass"
 
 
 class CargoType(str, Enum):
@@ -145,6 +151,16 @@ class AgentObservation:
     # Per-agent working memory (last 5 action outcomes this episode)
     memory: list[str] = field(default_factory=list)
 
+    # Recovery & geopolitical context
+    recovering_routes: list[str] = field(default_factory=list)
+    geopolitical_alerts: list[str] = field(default_factory=list)
+
+    # Live API data — real-world signals visible to this agent
+    live_weather: list[str] = field(default_factory=list)      # e.g. ["Mumbai: Heavy Rain sev=3"]
+    live_currency: str = ""                                     # e.g. "INR at 91.2 (+9.3% shock)"
+    live_conflict: str = ""                                     # e.g. "Strike in Chennai, Kolkata"
+    live_commodity: str = ""                                    # e.g. "Crude oil +12% — fuel rising"
+
     def to_prompt_text(self) -> str:
         lines = [
             f"=== Agent {self.agent_id} | Role: {self.role.value} | Turn {self.turn}/{self.max_turns} ===",
@@ -154,6 +170,8 @@ class AgentObservation:
             f"Pending deadlines: {self.pending_deadlines}",
             f"Disrupted routes: {self.disrupted_routes}",
             f"Disrupted nodes: {self.disrupted_nodes}",
+            f"Recovering routes: {self.recovering_routes}",
+            f"Geopolitical alerts: {self.geopolitical_alerts}",
             f"Neighbor bids: {self.neighbor_bids}",
             f"Coalition proposals: {self.coalition_proposals}",
             f"Action history: {self.action_history}",
@@ -162,6 +180,15 @@ class AgentObservation:
         ]
         if self.memory:
             lines.append(f"MY MEMORY (past actions this episode): {self.memory}")
+        # Append live API signals only when they carry real data
+        if self.live_weather:
+            lines.append(f"LIVE WEATHER (real-time): {self.live_weather}")
+        if self.live_currency:
+            lines.append(f"LIVE CURRENCY: {self.live_currency}")
+        if self.live_conflict:
+            lines.append(f"LIVE CONFLICT NEWS: {self.live_conflict}")
+        if self.live_commodity:
+            lines.append(f"LIVE COMMODITY: {self.live_commodity}")
         return "\n".join(lines)
 
 
