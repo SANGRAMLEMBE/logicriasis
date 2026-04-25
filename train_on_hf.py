@@ -18,7 +18,7 @@ Environment variables (set in HF Space secrets):
     HF_TOKEN         — HuggingFace write token (required to push model)
     scaler_weather   — OpenWeatherMap key (optional)
     NEWS_API_KEY     — NewsAPI key (optional)
-    MODEL_REPO       — Where to push the trained adapter (default: WIZARDIAN/logicriasis-adapter)
+    MODEL_REPO       — Where to push the trained adapter (default: Sana06112003/logicriasis-adapter)
     GPU_TIER         — Override auto-detect: "t4" | "a10g" | "a100" (optional)
 """
 from __future__ import annotations
@@ -76,7 +76,7 @@ if not hasattr(torch.utils._pytree, "register_constant"):
     torch.utils._pytree.register_constant = lambda cls: cls
 
 HF_TOKEN   = os.environ.get("HF_TOKEN", "")
-MODEL_REPO = os.environ.get("MODEL_REPO", "WIZARDIAN/logicriasis-adapter")
+MODEL_REPO = os.environ.get("MODEL_REPO", "Sana06112003/logicriasis-adapter")
 OUTPUT_DIR = "/tmp/logicriasis_outputs"
 ADAPTER_DIR = f"{OUTPUT_DIR}/final"
 
