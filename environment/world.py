@@ -256,6 +256,10 @@ class WorldState:
     def get_open_routes(self) -> list[Route]:
         return [r for r in self.routes.values() if not r.blocked]
 
+    def get_recovering_routes(self) -> list[str]:
+        """Route IDs that are currently blocked but have a scheduled heal turn."""
+        return [rid for rid in self._route_heal_at if self.routes[rid].blocked]
+
     def get_disrupted_route_ids(self) -> list[str]:
         return [r.route_id for r in self.routes.values() if r.blocked]
 

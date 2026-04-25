@@ -147,6 +147,10 @@ class AgentObservation:
     active_coalition_id: Optional[str] = None
     active_contracts: list[dict] = field(default_factory=list)
 
+    # Recovery & geopolitical context
+    recovering_routes: list[str] = field(default_factory=list)
+    geopolitical_alerts: list[str] = field(default_factory=list)
+
     def to_prompt_text(self) -> str:
         lines = [
             f"=== Agent {self.agent_id} | Role: {self.role.value} | Turn {self.turn}/{self.max_turns} ===",
