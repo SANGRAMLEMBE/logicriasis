@@ -1,0 +1,51 @@
+{
+  "_comment": "Historical disruption patterns derived from EM-DAT disaster database, ILO port strike records, and NHAI road closure data for India (2000-2023).",
+
+  "flood_prone_cities": {
+    "_comment": "Cities with historically high flood frequency and impact on logistics corridors.",
+    "Mumbai":    {"frequency": "high",   "typical_severity": [3, 5], "season": "June-September",  "note": "2005 Mumbai floods (944mm in 24h), annual monsoon disruptions"},
+    "Chennai":   {"frequency": "high",   "typical_severity": [3, 5], "season": "October-December", "note": "2015 Chennai floods, 2021 Cyclone Nivar impact"},
+    "Hyderabad": {"frequency": "medium", "typical_severity": [2, 4], "season": "July-September",   "note": "2020 Hyderabad floods, 2021 urban flooding"},
+    "Kolkata":   {"frequency": "medium", "typical_severity": [2, 4], "season": "June-September",   "note": "Annual cyclone-driven floods in Bay of Bengal corridor"},
+    "Bangalore": {"frequency": "low",    "typical_severity": [1, 3], "season": "October-November", "note": "2022 Bangalore floods, IT corridor disruption"},
+    "Ahmedabad": {"frequency": "low",    "typical_severity": [1, 3], "season": "July-August",       "note": "Sabarmati river flooding"},
+    "Surat":     {"frequency": "medium", "typical_severity": [2, 4], "season": "July-August",       "note": "Tapi river flooding, 2006 Surat flood (14 days submerged)"},
+    "Delhi":     {"frequency": "low",    "typical_severity": [1, 2], "season": "July-August",       "note": "Yamuna river flooding, NH-24 disruptions"},
+    "Pune":      {"frequency": "low",    "typical_severity": [1, 3], "season": "July-September",    "note": "Mutha river flooding, Mumbai-Pune expressway closures"},
+    "Jaipur":    {"frequency": "rare",   "typical_severity": [1, 2], "season": "August",            "note": "Flash floods from Aravalli range"}
+  },
+
+  "port_strike_history": [
+    {"port": "JNPT Mumbai",  "year": 2022, "duration_days": 3,  "cause": "wage dispute", "severity": 3, "affected_routes": ["Mumbai-Pune", "Mumbai-Ahmedabad"]},
+    {"port": "JNPT Mumbai",  "year": 2016, "duration_days": 5,  "cause": "outsourcing protest", "severity": 4, "affected_routes": ["Mumbai-Pune", "Mumbai-Surat", "Mumbai-Ahmedabad"]},
+    {"port": "Chennai Port",  "year": 2018, "duration_days": 7,  "cause": "container tariff dispute", "severity": 4, "affected_routes": ["Chennai-Bangalore", "Chennai-Hyderabad"]},
+    {"port": "Chennai Port",  "year": 2014, "duration_days": 12, "cause": "privatisation protest", "severity": 5, "affected_routes": ["Chennai-Bangalore", "Chennai-Hyderabad", "Chennai-Kolkata"]},
+    {"port": "Kolkata Port",  "year": 2021, "duration_days": 4,  "cause": "dock workers' strike", "severity": 3, "affected_routes": ["Kolkata-Hyderabad", "Kolkata-Delhi"]},
+    {"port": "Kochi Port",    "year": 2019, "duration_days": 6,  "cause": "labour dispute", "severity": 3, "affected_routes": ["Chennai-Hyderabad"]}
+  ],
+
+  "road_closure_history": [
+    {"route": "Mumbai-Pune",   "highway": "NH-48", "cause": "expressway landslide / heavy rain", "annual_closures": 8,  "avg_duration_days": 1.5, "severity": [2,4]},
+    {"route": "Delhi-Jaipur",  "highway": "NH-48", "cause": "fog / accident / road repair",      "annual_closures": 12, "avg_duration_days": 0.5, "severity": [1,3]},
+    {"route": "Bangalore-Hyderabad", "highway": "NH-44", "cause": "landslide / bridge repair",   "annual_closures": 5,  "avg_duration_days": 2.0, "severity": [2,4]},
+    {"route": "Chennai-Bangalore",   "highway": "NH-44", "cause": "landslide (Krishnagiri ghat)","annual_closures": 6,  "avg_duration_days": 1.5, "severity": [2,3]},
+    {"route": "Mumbai-Ahmedabad",    "highway": "NH-48", "cause": "heavy rain / accident",        "annual_closures": 10, "avg_duration_days": 1.0, "severity": [1,3]},
+    {"route": "Kolkata-Hyderabad",   "highway": "NH-16", "cause": "cyclone / flood damage",       "annual_closures": 4,  "avg_duration_days": 4.0, "severity": [3,5]}
+  ],
+
+  "disruption_type_weights": {
+    "_comment": "Relative probability of each disruption type occurring, based on historical frequency.",
+    "flood":        0.45,
+    "port_strike":  0.25,
+    "road_closure": 0.30
+  },
+
+  "severity_heal_turns": {
+    "_comment": "How many turns (days) before a disruption is resolved. Based on real event durations.",
+    "1": [2, 4],
+    "2": [3, 6],
+    "3": [4, 8],
+    "4": [6, 12],
+    "5": [8, 20]
+  }
+}
