@@ -27,13 +27,18 @@ import os, sys, subprocess, time
 # ── 1. Install dependencies ───────────────────────────────────────────────────
 
 def install():
-    # torch + torchvision must be installed before unsloth (unsloth_zoo imports torchvision at module load)
+    # Skip if Docker pre-installed everything already
+    try:
+        import unsloth, trl, datasets, peft, bitsandbytes  # noqa: F401
+        print("[SETUP] Dependencies already installed.")
+        return
+    except ImportError:
+        pass
+
     print("[SETUP] Installing dependencies...")
-    # torch 2.6+ required for torch.int1 (needed by torchao / new transformers)
     subprocess.run(
         [sys.executable, "-m", "pip", "install", "-q",
-         "torch==2.6.0", "torchvision", "torchaudio",
-         "--extra-index-url", "https://download.pytorch.org/whl/cu124"],
+         "torch", "torchvision", "torchaudio"],
         check=True,
     )
     pkgs = [
@@ -42,16 +47,12 @@ def install():
         "datasets",
         "accelerate",
         "peft",
+        "bitsandbytes",
         "matplotlib",
         "requests",
     ]
     subprocess.run(
         [sys.executable, "-m", "pip", "install", "-q"] + pkgs,
-        check=True,
-    )
-    # Downgrade torchao — 0.8+ uses torch.utils._pytree.register_constant which needs torch 2.7+
-    subprocess.run(
-        [sys.executable, "-m", "pip", "install", "-q", "torchao<0.8.0"],
         check=True,
     )
     print("[SETUP] Done.")
