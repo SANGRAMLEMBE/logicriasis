@@ -75,9 +75,9 @@ else:
 _tier_override = os.environ.get("GPU_TIER", "").lower()
 if _tier_override in ("a100", "a10g", "t4"):
     GPU_TIER = _tier_override
-elif "a100" in gpu_name:
-    GPU_TIER = "a100"
-elif "a10" in gpu_name:
+elif "a100" in gpu_name or "l40" in gpu_name or "h100" in gpu_name or vram_gb >= 40:
+    GPU_TIER = "a100"   # L40S=48GB, A100=40-80GB, H100=80GB — all use max config
+elif "a10" in gpu_name or vram_gb >= 20:
     GPU_TIER = "a10g"
 else:
     GPU_TIER = "t4"
