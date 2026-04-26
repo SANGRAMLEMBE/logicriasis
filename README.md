@@ -417,7 +417,7 @@ Adapter saved at: [Sana06112003/logicriasis-adapter](https://huggingface.co/Sana
 
 | Resource | URL |
 |----------|-----|
-| **Live Environment (HF Space)** | https://huggingface.co/spaces/Sana06112003/logicriasis-training |
+| **Live Environment (HF Space)** | https://huggingface.co/spaces/WIZARDIAN/logicriasis-train |
 | **Trained LoRA Adapter** | https://huggingface.co/Sana06112003/logicriasis-adapter |
 | **HuggingFace Blog** | https://github.com/SANGRAMLEMBE/logicriasis/blob/main/BLOG_POST.md |
 | **Training Notebook (Colab)** | https://colab.research.google.com/github/SANGRAMLEMBE/logicriasis/blob/main/logicriasis_colab_training.ipynb |
