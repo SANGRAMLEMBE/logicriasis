@@ -24,6 +24,13 @@ Environment variables (set in HF Space secrets):
 from __future__ import annotations
 import os, sys, subprocess, time
 
+# Fix for HF Spaces: container uid 1000 not in /etc/passwd, getpass.getuser() fails
+os.environ.setdefault("LOGNAME", "user")
+os.environ.setdefault("USER", "user")
+os.environ.setdefault("HOME", "/tmp")
+os.environ.setdefault("TORCHINDUCTOR_CACHE_DIR", "/tmp/torchinductor")
+os.environ.setdefault("TRITON_CACHE_DIR", "/tmp/triton_cache")
+
 # ── 1. Install dependencies ───────────────────────────────────────────────────
 
 def install():
