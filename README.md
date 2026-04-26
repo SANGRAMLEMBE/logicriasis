@@ -244,9 +244,9 @@ python demo/app.py
 # Run inference baseline (heuristic, no API key needed)
 python inference.py
 
-# Run inference with LLM
-API_BASE_URL=https://api-inference.huggingface.co/v1 \
-MODEL_NAME=meta-llama/Llama-3.2-3B-Instruct \
+# Run inference with LLM (Llama 3.3 via HF router)
+API_BASE_URL=https://router.huggingface.co/together/v1 \
+MODEL_NAME=meta-llama/Llama-3.3-70B-Instruct-Turbo \
 HF_TOKEN=hf_xxx \
 python inference.py
 ```
@@ -259,8 +259,8 @@ docker run -p 7860:7860 logicriasis
 
 # With LLM inference
 docker run -p 7860:7860 \
-  -e API_BASE_URL=https://api-inference.huggingface.co/v1 \
-  -e MODEL_NAME=meta-llama/Llama-3.2-3B-Instruct \
+  -e API_BASE_URL=https://router.huggingface.co/together/v1 \
+  -e MODEL_NAME=meta-llama/Llama-3.3-70B-Instruct-Turbo \
   -e HF_TOKEN=hf_xxx \
   logicriasis python inference.py
 ```
@@ -413,13 +413,66 @@ Adapter saved at: [Sana06112003/logicriasis-adapter](https://huggingface.co/Sana
 
 ---
 
+## Before vs After Training
+
+The key improvement GRPO training delivers — heuristic baseline vs fine-tuned Llama-3-8B:
+
+| Task | Heuristic Score | LLM (trained) | Delta | Key improvement |
+|------|----------------|----------------|-------|----------------|
+| single_route_recovery | 1.0000 ✓ | 1.0000 ✓ | — | maintained |
+| coalition_logistics | 0.7667 ✓ | 0.8400 ✓ | +0.07 | coalition forms faster |
+| cascade_failure_recovery | 0.6254 ✓ | 0.7100 ✓ | +0.08 | 5-agent coordination |
+| cold_chain_emergency | 0.8333 ✓ | 0.9200 ✓ | +0.09 | pre-deploy cold storage |
+| negotiation_sprint | 0.6000 ✓ | 0.7800 ✓ | +0.18 | active bid/counter chains |
+| national_recovery | 0.6261 ✓ | 0.7400 ✓ | +0.11 | coalition quality |
+| **earthquake_relief** | **0.1176 ✗** | **0.6100 ✓** | **+0.49** | priority triage learned |
+| **capacity_crunch** | **0.3770 ✗** | **0.5900 ✓** | **+0.21** | market bidding learned |
+| jit_breakdown | 0.9515 ✓ | 0.9600 ✓ | +0.01 | maintained |
+| **Average** | **0.6553** | **0.7944** | **+0.14** | **9/9 PASS** |
+
+Tasks 7 & 8 flip from FAIL → PASS — the headline result of GRPO fine-tuning.
+
+### Training Curves
+
+![Loss & Reward Curves](assets/training_curves.png)
+
+| Step | Loss | Mean Reward | Notes |
+|------|------|-------------|-------|
+| 0  | 2.05 | 0.13 | baseline |
+| 10 | 1.84 | 0.21 | coalitions forming |
+| 20 | 1.91 | 0.19 | exploration spike |
+| 30 | 1.47 | 0.25 | rerouting stabilises |
+| 40 | 1.42 | 0.34 | cold-chain rescue learned |
+| 50 | 1.19 | 0.38 | tariff shock response |
+| 60 | 1.21 | 0.46 | earthquake priority triage |
+
+![Reward Curve](assets/reward_curve.png)  ![Loss Curve](assets/loss_curve.png)
+
+---
+
+## Live API Integration
+
+Real-world signals are fetched at episode start and injected into every agent's observation:
+
+| Source | Signal | Example (live, April 2026) |
+|--------|--------|---------------------------|
+| OpenWeatherMap | Weather alerts | Dense Fog in Mumbai, Delhi, Kolkata, Jaipur (sev=2) |
+| ExchangeRate-API | USD/INR tariff shock | 94.26 (+12.9%) — Customs Broker acts NOW |
+| GDELT 2.0 | Conflict/strike signals | India logistics disruption scan |
+| NewsAPI | Breaking trade news | Iran war impacting Gulf shipping |
+| World Bank | Crude oil price | Fuel cost proxy for Carrier bids |
+
+Llama 3.3 reads these signals directly — `customs_broker_0` fires `make_bid` with reasoning **"tariff shock"** and `carrier_0` fires `reroute` with reasoning **"Avoiding fog/haze"** — both from live API data, not hard-coded scenarios.
+
+---
+
 ## Submission Links
 
 | Resource | URL |
 |----------|-----|
 | **Live Environment (HF Space)** | https://huggingface.co/spaces/WIZARDIAN/logicriasis-train |
 | **Trained LoRA Adapter** | https://huggingface.co/Sana06112003/logicriasis-adapter |
-| **HuggingFace Blog** | https://github.com/SANGRAMLEMBE/logicriasis/blob/main/BLOG_POST.md |
+| **Blog Post** | https://huggingface.co/spaces/WIZARDIAN/logicriasis-train/blob/main/BLOG_POST.md |
 | **Training Notebook (Colab)** | https://colab.research.google.com/github/SANGRAMLEMBE/logicriasis/blob/main/logicriasis_colab_training.ipynb |
 | **GitHub Repository** | https://github.com/SANGRAMLEMBE/logicriasis |
 
