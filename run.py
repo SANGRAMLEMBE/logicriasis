@@ -26,17 +26,6 @@ except Exception as _e:
         return {"error": str(_e)}
 
 
-@app.get("/training_log")
-def training_log():
-    try:
-        with open(LOG_FILE) as f:
-            lines = f.readlines()
-        tail = lines[-80:] if len(lines) > 80 else lines
-        return {"status": "found", "lines": len(lines), "tail": "".join(tail)}
-    except FileNotFoundError:
-        return {"status": "not_started", "tail": "Training not started yet."}
-
-
 # ── Start training in background ───────────────────────────────────────────────
 def start_training():
     time.sleep(8)
