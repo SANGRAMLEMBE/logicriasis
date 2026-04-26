@@ -122,29 +122,29 @@ print(f"[GPU] Tier   : {GPU_TIER.upper()}")
 #
 if GPU_TIER == "a100":
     BASE_MODEL      = "unsloth/llama-3-8b-instruct-bnb-4bit"
-    MAX_SEQ_LEN     = 4096
-    LORA_R          = 32
-    LORA_ALPHA      = 32
+    MAX_SEQ_LEN     = 2048
+    LORA_R          = 16
+    LORA_ALPHA      = 16
     LOAD_IN_4BIT    = True
     USE_BF16        = True
     BATCH_SIZE      = 4
     GRAD_ACC        = 2
     NUM_GENERATIONS = 8
-    MAX_COMPLETION  = 256
-    NUM_EPOCHS      = 2
+    MAX_COMPLETION  = 128
+    NUM_EPOCHS      = 1
     LR              = 3e-5
 elif GPU_TIER == "a10g":
     BASE_MODEL      = "unsloth/llama-3-8b-instruct-bnb-4bit"
-    MAX_SEQ_LEN     = 4096
-    LORA_R          = 32
-    LORA_ALPHA      = 32
+    MAX_SEQ_LEN     = 2048
+    LORA_R          = 16
+    LORA_ALPHA      = 16
     LOAD_IN_4BIT    = True
-    USE_BF16        = True          # A10G supports bf16
+    USE_BF16        = True
     BATCH_SIZE      = 2
     GRAD_ACC        = 4
-    NUM_GENERATIONS = 16
-    MAX_COMPLETION  = 384
-    NUM_EPOCHS      = 4
+    NUM_GENERATIONS = 8
+    MAX_COMPLETION  = 128
+    NUM_EPOCHS      = 1
     LR              = 4e-5
 else:  # T4 fallback
     BASE_MODEL      = "unsloth/llama-3-8b-instruct-bnb-4bit"
@@ -154,10 +154,10 @@ else:  # T4 fallback
     LOAD_IN_4BIT    = True
     USE_BF16        = False
     BATCH_SIZE      = 1
-    GRAD_ACC        = 8
+    GRAD_ACC        = 4
     NUM_GENERATIONS = 8
-    MAX_COMPLETION  = 256
-    NUM_EPOCHS      = 3
+    MAX_COMPLETION  = 128
+    NUM_EPOCHS      = 1
     LR              = 5e-5
 
 print(f"[CFG] max_seq={MAX_SEQ_LEN} | lora_r={LORA_R} | batch={BATCH_SIZE} | "
@@ -195,7 +195,7 @@ from training.train import build_curriculum_dataset
 from collections import Counter
 
 # More samples for bigger GPUs
-warmup_samples = 512 if GPU_TIER in ("a100", "a10g") else 256
+warmup_samples = 64
 
 print(f"\n[DATA] Building 6-role curriculum dataset (warmup={warmup_samples})...")
 dataset = build_curriculum_dataset(warmup_samples=warmup_samples)
@@ -276,24 +276,4 @@ if HF_TOKEN:
     except Exception as e:
         print(f"[HF] Push failed: {e} — adapter saved locally at {ADAPTER_DIR}")
 
-# ── 8. Quick benchmark: heuristic vs (untrained) check ───────────────────────
-
-print("\n[BENCH] Running post-training task check...")
-FastLanguageModel.for_inference(model)
-
-from inference import run_episode
-from environment.tasks import ALL_TASK_IDS
-
-print(f"{'Task':<35} {'Score':>8} {'Status'}")
-print("-" * 55)
-passed = 0
-for task_id in ALL_TASK_IDS:
-    result = run_episode(task_id, use_llm=False)
-    status = "PASS" if result["passed"] else "FAIL"
-    if result["passed"]:
-        passed += 1
-    print(f"  {task_id:<33} {result['score']:>8.4f}  {status}")
-
-print("-" * 55)
-print(f"  Pass rate: {passed}/{len(ALL_TASK_IDS)}")
-print(f"\n[DONE] Training pipeline complete. GPU={GPU_TIER.upper()} | LoRA r={LORA_R} | epochs={NUM_EPOCHS}")
+print(f"\n[DONE] Training complete. GPU={GPU_TIER.upper()} | LoRA r={LORA_R} | epochs={NUM_EPOCHS}")
