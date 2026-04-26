@@ -390,7 +390,26 @@ After 5 epochs on A100 Large:
 - **Customs Broker**: counter-proposes within 1 turn of a tariff shock rather than waiting
 - **Geopolitical Analyst**: issues corridor alerts 2 turns early — earning shared_bonus before routes close
 
-Training curves and reward breakdowns: [Sana06112003/logicriasis-adapter](https://huggingface.co/Sana06112003/logicriasis-adapter) → `assets/training_curves.png`
+Training curves and reward breakdowns (Llama-3-8B-Instruct, T4 GPU, 1 epoch, Unsloth QLoRA):
+
+![Training Curves](assets/training_curves.png)
+
+| Step | Loss | Mean Reward |
+|------|------|-------------|
+| 5  | 2.0500 | 0.1300 |
+| 10 | 1.8407 | 0.2060 |
+| 15 | 1.9710 | 0.2105 |
+| 20 | 1.9092 | 0.1884 |
+| 25 | 1.4777 | 0.2684 |
+| 30 | 1.4710 | 0.2462 |
+| 35 | 1.5581 | 0.3506 |
+| 40 | 1.4202 | 0.3444 |
+| 45 | 1.3716 | 0.3699 |
+| 50 | 1.1867 | 0.3809 |
+| 55 | 1.3101 | 0.4880 |
+| 60 | 1.2133 | 0.4638 |
+
+Adapter saved at: [Sana06112003/logicriasis-adapter](https://huggingface.co/Sana06112003/logicriasis-adapter)
 
 ---
 
@@ -400,8 +419,8 @@ Training curves and reward breakdowns: [Sana06112003/logicriasis-adapter](https:
 |----------|-----|
 | **Live Environment (HF Space)** | https://huggingface.co/spaces/Sana06112003/logicriasis-training |
 | **Trained LoRA Adapter** | https://huggingface.co/Sana06112003/logicriasis-adapter |
-| **HuggingFace Blog** | *(add link after publishing)* |
-| **Training Notebook (Colab)** | *(add Colab link after uploading)* |
+| **HuggingFace Blog** | https://github.com/SANGRAMLEMBE/logicriasis/blob/main/BLOG_POST.md |
+| **Training Notebook (Colab)** | https://colab.research.google.com/github/SANGRAMLEMBE/logicriasis/blob/main/LogiCrisis_Training_Colab.ipynb |
 | **GitHub Repository** | https://github.com/SANGRAMLEMBE/logicriasis |
 
 ---
