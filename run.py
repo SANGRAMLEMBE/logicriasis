@@ -1,36 +1,22 @@
-"""
-Entry point — run the FastAPI server locally.
-Usage: python run.py [--port 8000] [--demo]
-"""
-import argparse
-import subprocess
-import sys
-import os
+import subprocess, sys, threading, time
+import uvicorn
 
-def run_api(port: int = 8000):
-    print(f"Starting LogiCrisis API on http://localhost:{port}")
-    print(f"Docs: http://localhost:{port}/docs")
-    os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    subprocess.run([
-        sys.executable, "-m", "uvicorn",
-        "api.app:app",
-        "--host", "0.0.0.0",
-        "--port", str(port),
-        "--reload",
-    ])
+LOG_FILE = "/tmp/training.log"
 
-def run_demo(port: int = 7860):
-    print(f"Starting Gradio demo on http://localhost:{port}")
-    os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    subprocess.run([sys.executable, "demo/app.py"])
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--port", type=int, default=8000)
-    parser.add_argument("--demo", action="store_true", help="Run Gradio demo instead of API")
-    args = parser.parse_args()
+def start_training():
+    time.sleep(8)
+    with open(LOG_FILE, "w") as f:
+        f.write("[INIT] Starting LogiCrisis GRPO training...\n")
+        f.flush()
+        proc = subprocess.Popen(
+            [sys.executable, "train_on_hf.py"],
+            stdout=f, stderr=subprocess.STDOUT, text=True, bufsize=1,
+        )
+        proc.wait()
+        f.write("[DONE] Training exit code: " + str(proc.returncode) + "\n")
 
-    if args.demo:
-        run_demo()
-    else:
-        run_api(args.port)
+
+threading.Thread(target=start_training, daemon=True).start()
+print("[RUN] Training will begin in 8s. Starting API server on :7860")
+uvicorn.run("api.app:app", host="0.0.0.0", port=7860)

@@ -122,16 +122,16 @@ print(f"[GPU] Tier   : {GPU_TIER.upper()}")
 #
 if GPU_TIER == "a100":
     BASE_MODEL      = "unsloth/llama-3-8b-instruct-bnb-4bit"
-    MAX_SEQ_LEN     = 8192
-    LORA_R          = 64
-    LORA_ALPHA      = 64
+    MAX_SEQ_LEN     = 4096
+    LORA_R          = 32
+    LORA_ALPHA      = 32
     LOAD_IN_4BIT    = True
-    USE_BF16        = True          # A100 has native bf16
+    USE_BF16        = True
     BATCH_SIZE      = 4
     GRAD_ACC        = 2
-    NUM_GENERATIONS = 16
-    MAX_COMPLETION  = 512
-    NUM_EPOCHS      = 5
+    NUM_GENERATIONS = 8
+    MAX_COMPLETION  = 256
+    NUM_EPOCHS      = 2
     LR              = 3e-5
 elif GPU_TIER == "a10g":
     BASE_MODEL      = "unsloth/llama-3-8b-instruct-bnb-4bit"
@@ -195,7 +195,7 @@ from training.train import build_curriculum_dataset
 from collections import Counter
 
 # More samples for bigger GPUs
-warmup_samples = 1024 if GPU_TIER in ("a100", "a10g") else 512
+warmup_samples = 512 if GPU_TIER in ("a100", "a10g") else 256
 
 print(f"\n[DATA] Building 6-role curriculum dataset (warmup={warmup_samples})...")
 dataset = build_curriculum_dataset(warmup_samples=warmup_samples)
