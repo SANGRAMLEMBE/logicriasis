@@ -186,4 +186,4 @@ India's logistics sector is moving toward hyperautomation. The models to manage 
 
 ---
 
-*Built at [Hackathon Name] by Team LogiCrisis. Training ran on HuggingFace A100 Large GPU using Unsloth + TRL GRPO. Total GPU time: ~4 hours.*
+*Built at meta-pytorch-hackathon by Team LogiCrisis. Training ran on HuggingFace A100 Large GPU using Unsloth + TRL GRPO. Total GPU time: ~4 hours.*

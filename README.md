@@ -480,6 +480,4 @@ Llama 3.3 reads these signals directly — `customs_broker_0` fires `make_bid` w
 
 ## Team
 
-Built for the **Meta PyTorch OpenEnv Hackathon** by Team LogiCrisis.
-
-*Training: HuggingFace Spaces A100 Large GPU · Base model: Llama-3-8B-Instruct via Unsloth · Training framework: TRL GRPOTrainer · GPU time: ~4 hours*
+Built at **meta-pytorch-hackathon** by Team LogiCrisis. Training ran on HuggingFace A100 Large GPU using Unsloth + TRL GRPO. Total GPU time: ~4 hours.

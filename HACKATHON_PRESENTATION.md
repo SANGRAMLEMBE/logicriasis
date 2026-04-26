@@ -1,5 +1,5 @@
 # LogiCrisis: Multi-Agent Logistics Recovery
-## Complete Technical Presentation — Meta PyTorch OpenEnv Hackathon
+## Complete Technical Presentation — meta-pytorch-hackathon
 
 > **Theme**: #1 — Multi-Agent Interactions  
 > **Track**: OpenEnv Environment Design + LLM Fine-Tuning  
