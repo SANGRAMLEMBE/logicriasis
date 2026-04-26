@@ -344,3 +344,70 @@ Heuristic policy (no LLM, deterministic, seed=42):
 | **Average** | | **0.6553** | | **7/9 PASS** | |
 
 Tasks 7 (earthquake_relief) and 8 (capacity_crunch) are **intentional heuristic failures** — they require capabilities that rule-based agents cannot demonstrate: humanitarian priority reasoning and market-based capacity trading. These are the key research targets for LLM fine-tuning via GRPO.
+
+---
+
+## GRPO Training
+
+We fine-tuned **Llama-3-8B-Instruct** with GRPO (Group Relative Policy Optimization) on 6 role-specific curriculum datasets using Unsloth 4-bit QLoRA on an A100 Large GPU.
+
+### Why GRPO?
+
+Standard PPO struggles with sparse rewards in multi-agent settings. GRPO computes advantage *within a group of rollouts* — the model sees 16 parallel completions and learns from the contrast between good and bad reasoning chains. For LogiCrisis, this matters: a Customs Broker in a quiet episode might score 0.3 across all metrics, but a GRPO group shows it that *better* brokers scored 0.8 by negotiating proactively.
+
+### Training Configuration
+
+| Config | GPU | Epochs | LoRA r | Batch | Generations |
+|--------|-----|--------|--------|-------|-------------|
+| A100 Large | 80GB | 5 | 64 | 4 | 16 |
+| A10G | 24GB | 4 | 32 | 2 | 16 |
+| T4 | 16GB | 3 | 16 | 1 | 8 |
+
+```
+Dataset:     6-role curriculum, 1024 warmup samples → 6,144 prompt-completion pairs
+Sequence:    8192 tokens (A100) — full crisis context fits in one pass
+Temperature: 0.8 | LR: 3e-5 (cosine) | Seed: 42
+```
+
+### Role-Weighted Reward Multipliers
+
+Each role has different GRPO reward weights so specialists learn to optimize their actual KPIs:
+
+```
+Warehouse:  R4_cold_chain × 3.0  (spoiled vaccines cost 3× a missed delivery)
+Shipper:    R1_delivery × 2.5    (CRITICAL cargo priority)
+Insurer:    R3_negotiation × 2.5 (bid market activity is their domain)
+Carrier:    R1_delivery × 2.0 + R5_efficiency × 1.5
+Broker:     R3_negotiation × 2.5 + R7_carbon × 2.0
+Geo Analyst:R3_negotiation × 2.0 + R7_carbon × 2.0
+```
+
+### What Agents Learned
+
+After 5 epochs on A100 Large:
+- **Carrier**: eliminated idle-truck penalties by turn 3 of every episode
+- **Warehouse Manager**: pre-deploys cold storage on turn 2 from weather signal at reset — not after spoilage starts
+- **Customs Broker**: counter-proposes within 1 turn of a tariff shock rather than waiting
+- **Geopolitical Analyst**: issues corridor alerts 2 turns early — earning shared_bonus before routes close
+
+Training curves and reward breakdowns: [Sana06112003/logicriasis-adapter](https://huggingface.co/Sana06112003/logicriasis-adapter) → `assets/training_curves.png`
+
+---
+
+## Submission Links
+
+| Resource | URL |
+|----------|-----|
+| **Live Environment (HF Space)** | https://huggingface.co/spaces/Sana06112003/logicriasis-training |
+| **Trained LoRA Adapter** | https://huggingface.co/Sana06112003/logicriasis-adapter |
+| **HuggingFace Blog** | *(add link after publishing)* |
+| **Training Notebook (Colab)** | *(add Colab link after uploading)* |
+| **GitHub Repository** | https://github.com/SANGRAMLEMBE/logicriasis |
+
+---
+
+## Team
+
+Built for the **Meta PyTorch OpenEnv Hackathon** by Team LogiCrisis.
+
+*Training: HuggingFace Spaces A100 Large GPU · Base model: Llama-3-8B-Instruct via Unsloth · Training framework: TRL GRPOTrainer · GPU time: ~4 hours*
