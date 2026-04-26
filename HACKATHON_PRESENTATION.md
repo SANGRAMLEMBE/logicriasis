@@ -836,8 +836,8 @@ python inference.py
 
 ### LLM Inference (with HF key)
 ```bash
-API_BASE_URL=https://api-inference.huggingface.co/v1 \
-MODEL_NAME=meta-llama/Llama-3.2-3B-Instruct \
+API_BASE_URL=https://router.huggingface.co/together/v1 \
+MODEL_NAME=meta-llama/Llama-3.3-70B-Instruct-Turbo \
 HF_TOKEN=hf_xxx \
 python inference.py
 ```
@@ -870,9 +870,21 @@ docker run -p 7860:7860 logicriasis
 ### Push to HuggingFace Spaces
 ```bash
 huggingface-cli login
-git remote add origin https://huggingface.co/spaces/YOUR_USERNAME/logicriasis
-git push -u origin main
+git remote add hf-train https://huggingface.co/spaces/WIZARDIAN/logicriasis-train
+git push -u hf-train main
 ```
+
+---
+
+## Submission Links
+
+| Resource | URL |
+|----------|-----|
+| **Live Demo (Gradio UI)** | https://huggingface.co/spaces/WIZARDIAN/logicriasis-train |
+| **GitHub Repository** | https://github.com/SANGRAMLEMBE/logicriasis |
+| **Training Notebook (Colab)** | https://colab.research.google.com/github/SANGRAMLEMBE/logicriasis/blob/main/logicriasis_colab_training.ipynb |
+| **Blog Post** | https://huggingface.co/spaces/WIZARDIAN/logicriasis-train/blob/main/BLOG_POST.md |
+| **Trained LoRA Adapter** | https://huggingface.co/Sana06112003/logicriasis-adapter |
 
 ---
 

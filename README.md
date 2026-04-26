@@ -18,9 +18,21 @@ license: mit
 
 # LogiCrisis: Multi-Agent Logistics Recovery
 
-**Meta PyTorch OpenEnv Hackathon — Theme #1: Multi-Agent Interactions**
+**meta-pytorch-hackathon — Theme #1: Multi-Agent Interactions**
 
-A real-world supply chain crisis simulation where LLM agents cooperate, negotiate, and form coalitions to restore India's logistics network after cascading disruptions. Built on the OpenEnv spec with 5 agent roles, 6 reward signals, and 3 progressively harder graded tasks.
+A real-world supply chain crisis simulation where LLM agents cooperate, negotiate, and form coalitions to restore India's logistics network after cascading disruptions. Built on the OpenEnv spec with 5 agent roles, 6 reward signals, and 9 graded tasks.
+
+---
+
+## Quick Links
+
+| | |
+|---|---|
+| **Live Demo (Gradio)** | https://huggingface.co/spaces/WIZARDIAN/logicriasis-train |
+| **GitHub Repository** | https://github.com/SANGRAMLEMBE/logicriasis |
+| **Training Notebook (Colab)** | https://colab.research.google.com/github/SANGRAMLEMBE/logicriasis/blob/main/logicriasis_colab_training.ipynb |
+| **Blog Post** | https://huggingface.co/spaces/WIZARDIAN/logicriasis-train/blob/main/BLOG_POST.md |
+| **Trained LoRA Adapter** | https://huggingface.co/Sana06112003/logicriasis-adapter |
 
 ---
 

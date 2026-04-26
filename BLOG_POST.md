@@ -170,9 +170,11 @@ Training curves and full reward breakdowns are saved to `assets/training_curves.
 
 | Resource | URL |
 |----------|-----|
-| HuggingFace Space (live environment) | [WIZARDIAN/logicriasis-train](https://huggingface.co/spaces/WIZARDIAN/logicriasis-train) |
-| Trained LoRA adapter | [Sana06112003/logicriasis-adapter](https://huggingface.co/Sana06112003/logicriasis-adapter) |
-| GitHub repository | [SANGRAMLEMBE/logicriasis](https://github.com/SANGRAMLEMBE/logicriasis) |
+| Live Demo (Gradio UI) | https://huggingface.co/spaces/WIZARDIAN/logicriasis-train |
+| GitHub Repository | https://github.com/SANGRAMLEMBE/logicriasis |
+| Training Notebook (Colab) | https://colab.research.google.com/github/SANGRAMLEMBE/logicriasis/blob/main/logicriasis_colab_training.ipynb |
+| Trained LoRA Adapter | https://huggingface.co/Sana06112003/logicriasis-adapter |
+| Blog Post (this file) | https://huggingface.co/spaces/WIZARDIAN/logicriasis-train/blob/main/BLOG_POST.md |
 
 ---
 
