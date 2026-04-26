@@ -295,6 +295,18 @@ def live_data():
     return connector.get_all_disruptions()
 
 
+@app.get("/training_log", summary="Last 80 lines of the training log — check if training is running")
+def training_log():
+    log_path = "/tmp/training.log"
+    try:
+        with open(log_path, "r") as f:
+            lines = f.readlines()
+        tail = lines[-80:] if len(lines) > 80 else lines
+        return {"status": "found", "lines": len(lines), "tail": "".join(tail)}
+    except FileNotFoundError:
+        return {"status": "not_started", "tail": "Training log not created yet — training may still be starting up."}
+
+
 @app.get("/action_types", summary="All valid action_type values")
 def action_types():
     return {"action_types": [e.value for e in ActionType]}
