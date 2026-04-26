@@ -80,6 +80,10 @@ MODEL_REPO = os.environ.get("MODEL_REPO", "Sana06112003/logicriasis-adapter")
 OUTPUT_DIR = "/tmp/logicriasis_outputs"
 ADAPTER_DIR = f"{OUTPUT_DIR}/final"
 
+os.environ.setdefault("HF_HOME", "/tmp/hf_home")
+os.environ.setdefault("TRANSFORMERS_CACHE", "/tmp/hf_home/hub")
+os.makedirs("/tmp/hf_home", exist_ok=True)
+
 if HF_TOKEN:
     from huggingface_hub import login
     login(token=HF_TOKEN)
@@ -168,7 +172,7 @@ t0 = time.time()
 model, tokenizer = FastLanguageModel.from_pretrained(
     model_name=BASE_MODEL,
     max_seq_length=MAX_SEQ_LEN,
-    dtype=torch.bfloat16 if USE_BF16 else None,
+    dtype=None,
     load_in_4bit=LOAD_IN_4BIT,
 )
 model = FastLanguageModel.get_peft_model(

@@ -642,6 +642,11 @@ class WorldBankCommodityConnector:
 
 # ── Master aggregator ─────────────────────────────────────────────────────────
 
+# Module-level cache — fetched once per Python process.
+# Training creates ~100 envs; without this each env.reset() calls all APIs (~40s total).
+_LIVE_CONTEXT_CACHE: Optional[LiveContext] = None
+
+
 class LiveDataConnector:
     """
     Aggregates all live data sources into a LiveContext object.
@@ -657,7 +662,12 @@ class LiveDataConnector:
         self.commodity   = WorldBankCommodityConnector()
 
     def get_live_context(self) -> LiveContext:
-        """Fetch all sources and return a unified LiveContext."""
+        """Fetch all sources and return a unified LiveContext.
+        Cached at module level — only one real network fetch per Python process."""
+        global _LIVE_CONTEXT_CACHE
+        if _LIVE_CONTEXT_CACHE is not None:
+            return _LIVE_CONTEXT_CACHE
+
         # Weather: prefer OWM detail if available, fall back to Open-Meteo
         if self.owm.is_available():
             weather = self.owm.fetch()
@@ -686,13 +696,14 @@ class LiveDataConnector:
         # Commodity
         commodity = self.commodity.fetch()
 
-        return LiveContext(
+        _LIVE_CONTEXT_CACHE = LiveContext(
             weather_alerts=weather,
             currency_signal=currency,
             conflict_signal=conflict,
             commodity_signal=commodity,
             fetch_timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         )
+        return _LIVE_CONTEXT_CACHE
 
     # ── Legacy methods (keep backward compat with existing env.py calls) ───────
 
