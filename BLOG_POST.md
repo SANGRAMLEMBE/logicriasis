@@ -16,7 +16,7 @@ That's **LogiCrisis**.
 
 ## The Environment: Six Agents, Nine Crises, Zero Mercy
 
-We built **LogiCrisisEnv** — a fully OpenEnv-spec compliant multi-agent environment running at `https://Sana06112003-logicriasis-training.hf.space`.
+We built **LogiCrisisEnv** — a fully OpenEnv-spec compliant multi-agent environment running at `https://WIZARDIAN-logicriasis-train.hf.space`.
 
 ### The Cast
 
@@ -140,7 +140,7 @@ Judges can pull the environment directly using the OpenEnv spec:
 
 ```python
 import requests
-BASE = "https://Sana06112003-logicriasis-training.hf.space"
+BASE = "https://WIZARDIAN-logicriasis-train.hf.space"
 obs = requests.post(f"{BASE}/reset", json={"task_id": "cascade_failure_recovery"}).json()
 # obs contains observations for all 6 agents
 # Each has: role, cargo_queue, disrupted_routes, live_weather, live_currency, ...
@@ -170,7 +170,7 @@ Training curves and full reward breakdowns are saved to `assets/training_curves.
 
 | Resource | URL |
 |----------|-----|
-| HuggingFace Space (live environment) | [Sana06112003/logicriasis-training](https://huggingface.co/spaces/Sana06112003/logicriasis-training) |
+| HuggingFace Space (live environment) | [WIZARDIAN/logicriasis-train](https://huggingface.co/spaces/WIZARDIAN/logicriasis-train) |
 | Trained LoRA adapter | [Sana06112003/logicriasis-adapter](https://huggingface.co/Sana06112003/logicriasis-adapter) |
 | GitHub repository | [SANGRAMLEMBE/logicriasis](https://github.com/SANGRAMLEMBE/logicriasis) |
 
