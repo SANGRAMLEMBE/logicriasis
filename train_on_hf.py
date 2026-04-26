@@ -40,12 +40,16 @@ def install():
     except ImportError:
         print("[SETUP] Installing dependencies...")
 
+    # HF Spaces run as non-root — fix HOME so pip can write user packages to /tmp
+    _pip_env = {**os.environ, "HOME": "/tmp", "PIP_CACHE_DIR": "/tmp/pip_cache",
+                "PIP_NO_CACHE_DIR": "0"}
+
     # CUDA 12.4 wheel — matches the container's CUDA 12.4.1 runtime
     subprocess.run(
-        [sys.executable, "-m", "pip", "install", "-q",
+        [sys.executable, "-m", "pip", "install", "--user", "-q",
          "torch>=2.5.0,<2.7", "torchvision", "torchaudio",
          "--index-url", "https://download.pytorch.org/whl/cu124"],
-        check=True,
+        check=True, env=_pip_env,
     )
     pkgs = [
         "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git",
@@ -58,9 +62,14 @@ def install():
         "requests",
     ]
     subprocess.run(
-        [sys.executable, "-m", "pip", "install", "-q"] + pkgs,
-        check=True,
+        [sys.executable, "-m", "pip", "install", "--user", "-q"] + pkgs,
+        check=True, env=_pip_env,
     )
+    # Add user site-packages to path so imports work in this process
+    py_ver = f"{sys.version_info.major}.{sys.version_info.minor}"
+    user_site = f"/tmp/.local/lib/python{py_ver}/site-packages"
+    if user_site not in sys.path:
+        sys.path.insert(0, user_site)
     print("[SETUP] Done.")
 
 install()
