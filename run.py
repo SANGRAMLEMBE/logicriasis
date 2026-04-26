@@ -1,9 +1,43 @@
-import subprocess, sys, threading, time
+import subprocess, sys, threading, time, os, traceback
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 LOG_FILE = "/tmp/training.log"
 
+# ── Build the app — full API if imports work, minimal fallback if not ──────────
+try:
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from api.app import app
+    print("[RUN] Full LogiCrisis API loaded OK")
+except Exception as _e:
+    traceback.print_exc()
+    print(f"[RUN] WARNING: Full API failed to load ({_e}). Starting minimal fallback.")
+    app = FastAPI(title="LogiCrisis")
+    app.add_middleware(CORSMiddleware, allow_origins=["*"],
+                       allow_methods=["*"], allow_headers=["*"])
 
+    @app.get("/")
+    def root():
+        return {"status": "ok", "env": "LogiCrisis", "note": "full API failed to load — check /startup_error"}
+
+    @app.get("/startup_error")
+    def startup_error():
+        return {"error": str(_e)}
+
+
+@app.get("/training_log")
+def training_log():
+    try:
+        with open(LOG_FILE) as f:
+            lines = f.readlines()
+        tail = lines[-80:] if len(lines) > 80 else lines
+        return {"status": "found", "lines": len(lines), "tail": "".join(tail)}
+    except FileNotFoundError:
+        return {"status": "not_started", "tail": "Training not started yet."}
+
+
+# ── Start training in background ───────────────────────────────────────────────
 def start_training():
     time.sleep(8)
     with open(LOG_FILE, "w") as f:
@@ -18,5 +52,5 @@ def start_training():
 
 
 threading.Thread(target=start_training, daemon=True).start()
-print("[RUN] Training will begin in 8s. Starting API server on :7860")
-uvicorn.run("api.app:app", host="0.0.0.0", port=7860)
+print("[RUN] Training will begin in 8s. API server starting on :7860")
+uvicorn.run(app, host="0.0.0.0", port=7860)
