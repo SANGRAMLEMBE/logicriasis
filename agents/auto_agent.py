@@ -74,10 +74,18 @@ class AutoAgent:
     # ── Main decision interface ───────────────────────────────────────────────
 
     def decide(self, obs, turn: int = 0) -> AgentAction:
-        """Think → Act. Returns a valid AgentAction for this turn."""
-        self.last_thought = self._think(obs, turn)
-        action_dict = self._act(self.last_thought, obs)
-        return self._build_action(action_dict)
+        """Think -> Act. Falls back to built-in heuristic if API is unavailable."""
+        try:
+            thought = self._think(obs, turn)
+            if "api unavailable" in thought:
+                return self._heuristic_action(obs)
+            self.last_thought = thought
+            action_dict = self._act(thought, obs)
+            if action_dict.get("reasoning", "").startswith("api unavailable"):
+                return self._heuristic_action(obs)
+            return self._build_action(action_dict)
+        except Exception:
+            return self._heuristic_action(obs)
 
     def record_result(self, turn: int, action: AgentAction, reward: float):
         """Call after env.step() to store outcome in short-term memory."""
@@ -153,6 +161,53 @@ class AutoAgent:
             return lesson[:120] if lesson else None
         except Exception:
             return None
+
+    # ── Heuristic fallback (no API needed) ───────────────────────────────────
+
+    def _heuristic_action(self, obs) -> AgentAction:
+        """
+        Simple greedy policy used when the API is unavailable.
+        Tries: deploy cold storage → reroute pending cargo → wait.
+        """
+        world = getattr(obs, "_world", None)  # not always available from obs alone
+
+        # 1. Deploy cold storage if there is temp-sensitive pending cargo
+        for cargo_id, cargo in (getattr(obs, "cargo_queue", {}) or {}).items():
+            is_temp = getattr(cargo, "temp_sensitive", False)
+            delivered = getattr(cargo, "delivered", True)
+            spoiled = getattr(cargo, "spoiled", True)
+            if is_temp and not delivered and not spoiled:
+                if "deploy_cold_storage" in self._allowed:
+                    return self._build_action({
+                        "action_type": "deploy_cold_storage",
+                        "cargo_id": cargo_id,
+                        "reasoning": "heuristic: protect temp-sensitive cargo",
+                    })
+
+        # 2. Reroute first pending cargo to an unblocked route
+        routes = getattr(obs, "available_routes", []) or []
+        cargo_queue = getattr(obs, "cargo_queue", {}) or {}
+        for cargo_id, cargo in cargo_queue.items():
+            if getattr(cargo, "delivered", True) or getattr(cargo, "spoiled", True):
+                continue
+            dest = getattr(cargo, "destination", None)
+            for route in routes:
+                blocked = getattr(route, "blocked", True)
+                to_node = getattr(route, "to_node", None)
+                route_id = getattr(route, "route_id", None)
+                if not blocked and to_node == dest and route_id:
+                    if "reroute" in self._allowed:
+                        return self._build_action({
+                            "action_type": "reroute",
+                            "cargo_id": cargo_id,
+                            "route_id": route_id,
+                            "reasoning": "heuristic: direct unblocked route to destination",
+                        })
+
+        return self._build_action({
+            "action_type": "wait",
+            "reasoning": "heuristic: no actionable cargo or routes",
+        })
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 

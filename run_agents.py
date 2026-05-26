@@ -20,9 +20,22 @@ import argparse
 import os
 import sys
 
+# Force UTF-8 stdout/stderr on Windows so unicode chars don't crash
+if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if sys.stderr.encoding and sys.stderr.encoding.lower() != "utf-8":
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-HF_HOME_DEFAULT = "/tmp/hf_home"
+# Load .env before anything else so API keys are available
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv optional; keys can also be set in the shell
+
+HF_HOME_DEFAULT = os.environ.get("HF_HOME", "/tmp/hf_home")
 os.environ.setdefault("HF_HOME", HF_HOME_DEFAULT)
 os.environ.setdefault("TRANSFORMERS_CACHE", os.path.join(HF_HOME_DEFAULT, "hub"))
 os.makedirs(HF_HOME_DEFAULT, exist_ok=True)

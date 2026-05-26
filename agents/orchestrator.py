@@ -32,7 +32,7 @@ class EpisodeResult:
 
 
 def _infer_role(agent_id: str) -> str:
-    """'geo_analyst_0' → 'geopolitical_analyst', 'carrier_0' → 'carrier', etc."""
+    """'geo_analyst_0' -> 'geopolitical_analyst', 'carrier_0' -> 'carrier', etc."""
     _MAP = {
         "geo_analyst":    "geopolitical_analyst",
         "customs_broker": "customs_broker",
@@ -57,7 +57,7 @@ class MultiAgentOrchestrator:
         self._agents: dict[str, AutoAgent] = {}   # persisted across episodes
         self.results: list[EpisodeResult] = []
 
-    # ── Agent management ──────────────────────────────────────────────────────
+    # -- Agent management ------------------------------------------------------
 
     def _get_agents(self, task_id: str) -> dict[str, AutoAgent]:
         """
@@ -79,7 +79,7 @@ class MultiAgentOrchestrator:
             agents[agent_id] = self._agents[agent_id]
         return agents
 
-    # ── Episode runner ────────────────────────────────────────────────────────
+    # -- Episode runner --------------------------------------------------------
 
     def run_episode(self, task_id: str, seed: int = 42) -> EpisodeResult:
         task = get_task(task_id)
@@ -118,7 +118,7 @@ class MultiAgentOrchestrator:
 
                 if self.verbose:
                     print(
-                        f"→ {action.action_type.value:<22} "
+                        f"-> {action.action_type.value:<22} "
                         f"| {(action.reasoning or '')[:55]}"
                     )
 
@@ -166,7 +166,7 @@ class MultiAgentOrchestrator:
         self._summary_line(result)
         return result
 
-    # ── Multi-episode runners ─────────────────────────────────────────────────
+    # -- Multi-episode runners -------------------------------------------------
 
     def run_all_tasks(self, seed: int = 42) -> list[EpisodeResult]:
         """Standard benchmark: run all 9 tasks in curriculum order."""
@@ -207,26 +207,26 @@ class MultiAgentOrchestrator:
         self._final_summary(results)
         return results
 
-    # ── Display ───────────────────────────────────────────────────────────────
+    # -- Display ---------------------------------------------------------------
 
     def _banner(self, title: str):
         if self.verbose:
-            print(f"\n{'═' * 60}\n{title}\n{'═' * 60}")
+            print(f"\n{'=' * 60}\n{title}\n{'=' * 60}")
 
     def _header(self, task_id: str, task, agents: dict):
         if not self.verbose:
             return
-        print(f"\n{'─' * 60}")
+        print(f"\n{'-' * 60}")
         print(f"  Task     : {task_id}")
         print(f"  Agents   : {list(agents.keys())}")
         print(f"  Max turns: {task.max_turns}  |  Cargo: {task.cargo_count}  |  "
               f"Disruptions: {task.disruptions}")
-        print(f"{'─' * 60}")
+        print(f"{'-' * 60}")
 
     def _summary_line(self, r: EpisodeResult):
         if not self.verbose:
             return
-        status = "PASS ✓" if r.passed else "FAIL ✗"
+        status = "PASS OK" if r.passed else "FAIL X"
         print(
             f"\n  Score={r.score:.4f}  OTIF={r.otif_percent:.1f}%  "
             f"{status}  turns={r.turns_used}  time={r.elapsed_sec:.1f}s"
@@ -235,9 +235,9 @@ class MultiAgentOrchestrator:
     def _final_summary(self, results: list[EpisodeResult]):
         if not results:
             return
-        print(f"\n{'═' * 60}")
+        print(f"\n{'=' * 60}")
         print("Final Results")
-        print(f"{'═' * 60}")
+        print(f"{'=' * 60}")
         for r in results:
             status = "PASS" if r.passed else "FAIL"
             print(f"  {r.task_id:<38} {r.score:.4f}  {status}")
@@ -245,4 +245,4 @@ class MultiAgentOrchestrator:
         passed = sum(1 for r in results if r.passed)
         print(f"\n  Average score : {sum(scores)/len(scores):.4f}")
         print(f"  Tasks passed  : {passed}/{len(results)}")
-        print("═" * 60)
+        print("=" * 60)
